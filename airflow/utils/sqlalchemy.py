@@ -30,11 +30,20 @@ import random
 
 from sqlalchemy import event, exc, select
 from sqlalchemy.types import DateTime, TypeDecorator
-
+from airflow import configuration as conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 utc = pendulum.timezone('UTC')
+
+try:
+    tz = conf.get("core", "default_timezone")
+    if tz == "system":
+        utc = pendulum.local_timezone()
+    else:
+        utc = pendulum.timezone(tz)
+except Exception as err:
+    log.error("error init utc in sqlalchemy...", err)
 
 
 def setup_event_handlers(engine,
