@@ -17,7 +17,7 @@
 #}
 {% extends "airflow/master.html" %}
 
-{% block title %}Airflow - DAGs{% endblock %}
+{% block title %}Dataflow - DAGs{% endblock %}
 
 {% block head_css %}
 {{ super() }}
@@ -26,7 +26,7 @@
 {% endblock %}
 
 {% block body %}
-  <h2>DAGs</h2>
+  <h2>Dataflow大数据离线任务管理平台</h2>
 
   <div id="main_content">
     <div class="row">
@@ -46,20 +46,20 @@
             <tr>
                 <th></th>
                 <th width="12"><span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
-                <th>DAG</th>
-                <th>Schedule</th>
-                <th>Owner</th>
-                <th style="padding-left: 5px;">Recent Tasks
+                <th>任务名称</th>
+                <th>调度表达式</th>
+                <th>负责人</th>
+                <th style="padding-left: 5px;">最近任务
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+                <th style="padding-left: 5px;">最后一次运行 <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
                 </th>
-                <th style="padding-left: 5px;">DAG Runs
+                <th style="padding-left: 5px;">运行记录
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th class="text-center">Links</th>
+                <th class="text-center">操作</th>
             </tr>
         </thead>
         <tbody>
