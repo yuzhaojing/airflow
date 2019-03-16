@@ -74,54 +74,54 @@ def create_app(config=None, testing=False):
         admin = Admin(
             app, name='Airflow',
             static_url_path='/admin',
-            index_view=views.HomeView(endpoint='', url='/admin', name="DAGs"),
+            index_view=views.HomeView(endpoint='', url='/admin', name="任务列表"),
             template_mode='bootstrap3',
         )
         av = admin.add_view
         vs = views
-        av(vs.Airflow(name='DAGs', category='DAGs'))
+        av(vs.Airflow(name='DAGs', category='任务列表'))
 
         if not conf.getboolean('core', 'secure_mode'):
-            av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
+            av(vs.QueryView(name='Ad Hoc Query', category="数据洞察"))
             av(vs.ChartModelView(
-                models.Chart, Session, name="Charts", category="Data Profiling"))
+                models.Chart, Session, name="Charts", category="数据洞察"))
         av(vs.KnownEventView(
             models.KnownEvent,
-            Session, name="Known Events", category="Data Profiling"))
+            Session, name="Known Events", category="数据洞察"))
         av(vs.SlaMissModelView(
             models.SlaMiss,
-            Session, name="SLA Misses", category="Browse"))
+            Session, name="SLA Misses", category="浏览"))
         av(vs.TaskInstanceModelView(models.TaskInstance,
-            Session, name="Task Instances", category="Browse"))
+            Session, name="Task Instances", category="浏览"))
         av(vs.LogModelView(
-            models.Log, Session, name="Logs", category="Browse"))
+            models.Log, Session, name="Logs", category="浏览"))
         av(vs.JobModelView(
-            jobs.BaseJob, Session, name="Jobs", category="Browse"))
+            jobs.BaseJob, Session, name="Jobs", category="浏览"))
         av(vs.PoolModelView(
-            models.Pool, Session, name="Pools", category="Admin"))
+            models.Pool, Session, name="Pools", category="管理"))
         av(vs.ConfigurationView(
-            name='Configuration', category="Admin"))
+            name='Configuration', category="管理"))
         av(vs.UserModelView(
-            models.User, Session, name="Users", category="Admin"))
+            models.User, Session, name="Users", category="管理"))
         av(vs.ConnectionModelView(
-            models.Connection, Session, name="Connections", category="Admin"))
+            models.Connection, Session, name="Connections", category="管理"))
         av(vs.VariableView(
-            models.Variable, Session, name="Variables", category="Admin"))
+            models.Variable, Session, name="Variables", category="管理"))
         av(vs.XComView(
-            models.XCom, Session, name="XComs", category="Admin"))
+            models.XCom, Session, name="XComs", category="管理"))
 
         admin.add_link(base.MenuLink(
-            category='Docs', name='Documentation',
+            category='文档', name='Documentation',
             url='https://airflow.apache.org/'))
         admin.add_link(
-            base.MenuLink(category='Docs',
+            base.MenuLink(category='文档',
                           name='Github',
                           url='https://github.com/apache/airflow'))
 
-        av(vs.VersionView(name='Version', category="About"))
+        av(vs.VersionView(name='Version', category="关于DI"))
 
         av(vs.DagRunModelView(
-            models.DagRun, Session, name="DAG Runs", category="Browse"))
+            models.DagRun, Session, name="DAG Runs", category="浏览"))
         av(vs.DagModelView(models.DagModel, Session, name=None))
         # Hack to not add this view to the menu
         admin._menu = admin._menu[:-1]
