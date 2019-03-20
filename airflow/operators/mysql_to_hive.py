@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import gzip
 
 from builtins import chr
 from collections import OrderedDict
@@ -84,6 +85,8 @@ class MySqlToHiveTransfer(BaseOperator):
             tblproperties=None,
             *args, **kwargs):
         super(MySqlToHiveTransfer, self).__init__(*args, **kwargs)
+        self.mysql_table = kwargs.get('mysql_table', None)
+        self.mysql_database = kwargs.get('mysql_database', None)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition
@@ -94,6 +97,7 @@ class MySqlToHiveTransfer(BaseOperator):
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
         self.tblproperties = tblproperties
+        self.temp_dir = kwargs.get('temp_dir', None)
 
     @classmethod
     def type_map(cls, mysql_type):
@@ -101,6 +105,7 @@ class MySqlToHiveTransfer(BaseOperator):
         d = {
             t.BIT: 'INT',
             t.DECIMAL: 'DOUBLE',
+            t.NEWDECIMAL: 'DOUBLE',
             t.DOUBLE: 'DOUBLE',
             t.FLOAT: 'DOUBLE',
             t.INT24: 'INT',
@@ -116,27 +121,49 @@ class MySqlToHiveTransfer(BaseOperator):
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
-
-        self.log.info("Dumping MySQL query results to local file")
         conn = mysql.get_conn()
         cursor = conn.cursor()
-        cursor.execute(self.sql)
-        with NamedTemporaryFile("wb") as f:
-            csv_writer = csv.writer(f, delimiter=self.delimiter, encoding="utf-8")
-            field_dict = OrderedDict()
-            for field in cursor.description:
-                field_dict[field[0]] = self.type_map(field[1])
-            csv_writer.writerows(cursor)
-            f.flush()
+
+        col_sql = "select COLUMN_NAME, COLUMN_COMMENT from INFORMATION_SCHEMA.COLUMNS " \
+                  "where table_name = '%s' and table_schema = '%s'" % (self.mysql_table, self.mysql_database)
+        self.log.info("Execute sql: %s" % col_sql)
+        col_comments = {}
+        try:
+            cursor.execute(col_sql)
+            for row in cursor.fetchall():
+                col_comments[row[0]] = " comment '%s' " % (row[1], )
+        except MySQLdb.Error, e:
+            self.log.event(str(e))
+
+        self.log.info("Dumping MySQL query results to local file")
+        try:
+            cursor.execute(self.sql)
+            with NamedTemporaryFile("wb", suffix='.gz', dir=self.temp_dir) as f:
+                with gzip.GzipFile(mode='wb', fileobj=f) as g:
+                    csv_writer = csv.writer(g, delimiter=self.delimiter, encoding="utf-8")
+                    field_dict = OrderedDict()
+                    for field in cursor.description:
+                        field_dict[field[0]] = self.type_map(field[1]) + col_comments.get(field[0], '')
+
+                    rows = cursor.fetchmany(50000)
+                    i = 0
+                    while rows:
+                        csv_writer.writerows(rows)
+                        i += len(rows)
+                        self.log.info('Fetch %d rows from mysql' % i)
+                        rows = cursor.fetchmany(50000)
+
+                    g.flush()
+                    self.log.info("Loading file into Hive")
+                    hive.load_file(
+                        g.name,
+                        self.hive_table,
+                        field_dict=field_dict,
+                        create=self.create,
+                        partition=self.partition,
+                        delimiter=self.delimiter,
+                        recreate=self.recreate,
+                        tblproperties=self.tblproperties)
+        finally:
             cursor.close()
             conn.close()
-            self.log.info("Loading file into Hive")
-            hive.load_file(
-                f.name,
-                self.hive_table,
-                field_dict=field_dict,
-                create=self.create,
-                partition=self.partition,
-                delimiter=self.delimiter,
-                recreate=self.recreate,
-                tblproperties=self.tblproperties)
