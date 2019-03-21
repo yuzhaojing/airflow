@@ -348,6 +348,21 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(0, len(dag_volume_mount))
         self.assertEqual(0, len(init_containers))
 
+    def test_worker_container_tmp(self):
+        # Tests that the 'airflow-dags' persistence volume is NOT created when `dags_in_image` is set
+        self.kube_config.base_tmp_folder = "/opt/soft/airflow/tmp"
+        self.kube_config.tmp_volume_host = "/tmp/airflow"
+        self.kube_config.tmp_volume_claim = None
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes, volume_mounts = worker_config.init_volumes_and_mounts()
+
+        dag_volume = [volume for volume in volumes.values() if volume['name'] == 'airflow-tmp']
+        dag_volume_mount = [mount for mount in volume_mounts.values() if mount['name'] == 'airflow-tmp']
+
+        self.assertEqual(1, len(dag_volume))
+        self.assertEqual(1, len(dag_volume_mount))
+
 
 if __name__ == '__main__':
     unittest.main()

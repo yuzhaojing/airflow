@@ -173,6 +173,9 @@ class KubeConfig:
         # This prop may optionally be set for PV Claims and is used to write logs
         self.logs_volume_claim = conf.get(self.kubernetes_section, 'logs_volume_claim')
 
+        # This prop may optionally be set for PV Claims and is used to write logs
+        self.tmp_volume_claim = conf.get(self.kubernetes_section, 'tmp_volume_claim')
+
         # This prop may optionally be set for PV Claims and is used to locate DAGs
         # on a SubPath
         self.dags_volume_subpath = conf.get(
@@ -183,14 +186,25 @@ class KubeConfig:
         self.logs_volume_subpath = conf.get(
             self.kubernetes_section, 'logs_volume_subpath')
 
+        # This prop may optionally be set for PV Claims and is used to locate tmp files
+        # on a SubPath
+        self.tmp_volume_subpath = conf.get(
+            self.kubernetes_section, 'tmp_volume_subpath')
+
         # Optionally, hostPath volume containing DAGs
         self.dags_volume_host = conf.get(self.kubernetes_section, 'dags_volume_host')
 
         # Optionally, write logs to a hostPath Volume
         self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
+        # Optionally, write logs to a hostPath Volume
+        self.tmp_volume_host = conf.get(self.kubernetes_section, 'tmp_volume_host')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
+
+        # This prop may optionally be set for PV Claims and is used to write tmp files
+        self.base_tmp_folder = configuration.get(self.core_section, 'base_tmp_folder')
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
         # that if your
