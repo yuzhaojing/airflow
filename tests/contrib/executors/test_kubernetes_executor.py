@@ -360,8 +360,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         dag_volume = [volume for volume in volumes.values() if volume['name'] == 'airflow-tmp']
         dag_volume_mount = [mount for mount in volume_mounts.values() if mount['name'] == 'airflow-tmp']
 
-        print(dag_volume)
-        print(dag_volume_mount)
+        self.assertEqual(1, len(dag_volume))
+        self.assertEqual(1, len(dag_volume_mount))
 
 
 if __name__ == '__main__':
