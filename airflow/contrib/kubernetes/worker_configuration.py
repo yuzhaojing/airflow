@@ -197,6 +197,10 @@ class WorkerConfiguration(LoggingMixin):
             del volumes[self.dags_volume_name]
             del volume_mounts[self.dags_volume_name]
 
+        if not self.kube_config.tmp_volume_host:
+            del volumes[self.tmp_volume_name]
+            del volume_mounts[self.tmp_volume_name]
+
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
             config_volume_name = 'airflow-config'
