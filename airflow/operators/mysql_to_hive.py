@@ -171,9 +171,6 @@ class MySqlToHiveTransfer(BaseOperator):
         except OSError as e:
             self.log.error("Can not remove temp files, error is %s" % e)
 
-        except Exception as e:
-            self.log.error("Load to hive found exception, error is %s" % e)
-
         finally:
             cursor.close()
             conn.close()
