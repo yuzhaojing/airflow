@@ -165,9 +165,6 @@ class MySqlToHiveTransfer(BaseOperator):
                         recreate=self.recreate,
                         tblproperties=self.tblproperties)
 
-                    # delete temp files
-                    os.remove(g)
-
         except OSError as e:
             self.log.error("Can not remove temp files, error is %s" % e)
 
