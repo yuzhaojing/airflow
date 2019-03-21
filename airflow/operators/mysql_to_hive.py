@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import gzip
-
+import os
 from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
@@ -132,8 +132,8 @@ class MySqlToHiveTransfer(BaseOperator):
             cursor.execute(col_sql)
             for row in cursor.fetchall():
                 col_comments[row[0]] = " comment '%s' " % (row[1], )
-        except MySQLdb.Error, e:
-            self.log.event(str(e))
+        except MySQLdb.Error as e:
+            self.log.error("failed to exec %s, error is :%s", col_sql, str(e))
 
         self.log.info("Dumping MySQL query results to local file")
         try:
@@ -164,6 +164,16 @@ class MySqlToHiveTransfer(BaseOperator):
                         delimiter=self.delimiter,
                         recreate=self.recreate,
                         tblproperties=self.tblproperties)
+
+                    # delete temp files
+                    os.remove(g)
+
+        except OSError as e:
+            self.log.error("Can not remove temp files, error is %s" % e)
+
+        except Exception as e:
+            self.log.error("Load to hive found exception, error is %s" % e)
+
         finally:
             cursor.close()
             conn.close()
