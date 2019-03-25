@@ -277,5 +277,6 @@ class WorkerConfiguration(LoggingMixin):
             node_selectors=(kube_executor_config.node_selectors or
                             self.kube_config.kube_node_selectors),
             affinity=affinity,
-            tolerations=tolerations
+            tolerations=tolerations,
+            hostnetwork=kube_executor_config.hostnetwork
         )
