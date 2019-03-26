@@ -100,6 +100,8 @@ class MySqlHook(DbApiHook):
             conn_config['unix_socket'] = conn.extra_dejson['unix_socket']
         if local_infile:
             conn_config["local_infile"] = 1
+        # Add default timeout to 30 seconds
+        conn_config['connect_timeout'] = 30
         conn = MySQLdb.connect(**conn_config)
         return conn
 
