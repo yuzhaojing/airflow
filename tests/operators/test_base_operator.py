@@ -19,17 +19,16 @@
 
 from __future__ import print_function, unicode_literals
 
-import os
 import unittest
 from datetime import timedelta
 
 import airflow
 
-from airflow import configuration
-from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
-from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.exceptions import AirflowException
+
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -60,8 +59,23 @@ class BaseOperatorTest(unittest.TestCase):
 
     def test_base_operator_run(self):
         """Tests that the python callable is invoked on task run."""
-        task = PythonOperator(
+        success_task = PythonOperator(
             task_id="start_task", python_callable=print_stuff, dag=dag,
             limit_resource="1C2G"
         )
-        self.assertEqual(1, len(task.executor_config))
+        self.assertEqual(1, len(success_task.executor_config))
+
+        self.assertRaises(
+            AirflowException,
+            PythonOperator, task_id="start_task", python_callable=print_stuff,
+            dag=dag, limit_resource="8C2G")
+
+        self.assertRaises(
+            AirflowException,
+            PythonOperator, task_id="start_task", python_callable=print_stuff,
+            dag=dag, limit_resource="1C16G")
+
+        self.assertRaises(
+            AirflowException,
+            PythonOperator, task_id="start_task", python_callable=print_stuff,
+            dag=dag, limit_resource="1G")

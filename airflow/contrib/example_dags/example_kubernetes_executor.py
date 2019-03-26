@@ -94,9 +94,5 @@ three_task = PythonOperator(
                                "tolerations": tolerations,
                                "affinity": affinity}}
 )
-print(start_task.executor_config)
-print(one_task.executor_config)
-print(two_task.executor_config)
-print(three_task.executor_config)
 
 start_task.set_downstream([one_task, two_task, three_task])

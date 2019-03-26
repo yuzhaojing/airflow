@@ -2468,6 +2468,7 @@ class BaseOperator(LoggingMixin):
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
+    default_resource = "1C1G"
 
     @apply_defaults
     def __init__(
@@ -2504,7 +2505,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
-            limit_resource=None,
+            limit_resource=default_resource,
             inlets=None,
             outlets=None,
             *args,
@@ -2647,15 +2648,36 @@ class BaseOperator(LoggingMixin):
         }
 
     def transform(self, limit_resource):
-        arr = limit_resource.split("C")
-        limit_cpu = arr[0]
-        limit_memory = arr[1] + "i"
-        executor_config = {
-            "KubernetesExecutor": {"request_memory": "256Mi",
-                                   "limit_memory": limit_memory,
-                                   "request_cpu": "100m",
-                                   "limit_cpu": limit_cpu}}
-        return executor_config
+        max_core = int(configuration.conf.get('core', 'pod_max_core'))
+        max_memory = int(configuration.conf.get('core', 'pod_max_memory'))
+        if limit_resource.__contains__("C") and limit_resource.__contains__("G"):
+            arr = limit_resource.split("C")
+            limit_cpu = arr[0]
+            if not limit_cpu.isdigit():
+                raise AirflowException('limit_cpu {} is Invalid values, example: limit_resource="1C1G"'.format(limit_cpu))
+            elif int(limit_cpu) > max_core:
+                raise AirflowException('limit_cpu {} is larger than max cpu {}'.format(limit_cpu, max_core))
+            limit_memory = arr[1]
+            if limit_memory.endswith("G"):
+                memory_size = limit_memory.split("G")[0]
+                if not memory_size.isdigit():
+                    raise AirflowException(
+                        'limit_memory {} is Invalid values, example: limit_resource="1C1G"'.format(limit_memory))
+                elif int(memory_size) > max_memory:
+                    raise AirflowException('limit_memory {} is larger than max memory {}G'.format(limit_memory, max_memory))
+            else:
+                raise AirflowException(
+                    'limit_memory {} is Invalid values, example: limit_resource="1C1G"'.format(limit_memory))
+            limit_memory = limit_memory + "i"
+            executor_config = {
+                "KubernetesExecutor": {"request_memory": "256Mi",
+                                       "limit_memory": limit_memory,
+                                       "request_cpu": "100m",
+                                       "limit_cpu": limit_cpu}}
+            return executor_config
+        else:
+            raise AirflowException(
+                'limit_resource {} is Invalid values, example: limit_resource="1C1G"'.format(limit_resource))
 
     def __eq__(self, other):
         if (type(self) == type(other) and
