@@ -2504,6 +2504,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
+            limit_resource=None,
             inlets=None,
             outlets=None,
             *args,
@@ -2587,8 +2588,10 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
-        self.executor_config = executor_config or {}
-
+        if limit_resource:
+            self.executor_config = self.transform(limit_resource=limit_resource)
+        else:
+            self.executor_config = executor_config or {}
         # Private attributes
         self._upstream_task_ids = set()
         self._downstream_task_ids = set()
@@ -2642,6 +2645,17 @@ class BaseOperator(LoggingMixin):
             'on_success_callback',
             'on_retry_callback',
         }
+
+    def transform(self, limit_resource):
+        arr = limit_resource.split("C")
+        limit_cpu = arr[0]
+        limit_memory = arr[1] + "i"
+        executor_config = {
+            "KubernetesExecutor": {"request_memory": "256Mi",
+                                   "limit_memory": limit_memory,
+                                   "request_cpu": "100m",
+                                   "limit_cpu": limit_cpu}}
+        return executor_config
 
     def __eq__(self, other):
         if (type(self) == type(other) and

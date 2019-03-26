@@ -69,7 +69,8 @@ def use_zip_binary():
 
 # You don't have to use any special KubernetesExecutor configuration if you don't want to
 start_task = PythonOperator(
-    task_id="start_task", python_callable=print_stuff, dag=dag
+    task_id="start_task", python_callable=print_stuff, dag=dag,
+    limit_resource="1C2G"
 )
 
 # But you can if you want to
@@ -93,5 +94,9 @@ three_task = PythonOperator(
                                "tolerations": tolerations,
                                "affinity": affinity}}
 )
+print(start_task.executor_config)
+print(one_task.executor_config)
+print(two_task.executor_config)
+print(three_task.executor_config)
 
 start_task.set_downstream([one_task, two_task, three_task])
