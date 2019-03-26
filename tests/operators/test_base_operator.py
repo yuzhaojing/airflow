@@ -64,4 +64,4 @@ class BaseOperatorTest(unittest.TestCase):
             task_id="start_task", python_callable=print_stuff, dag=dag,
             limit_resource="1C2G"
         )
-        print(task.executor_config)
+        self.assertEqual(1, len(task.executor_config))
