@@ -61,9 +61,8 @@ class BaseOperatorTest(unittest.TestCase):
         """Tests that the python callable is invoked on task run."""
         success_task = PythonOperator(
             task_id="start_task", python_callable=print_stuff, dag=dag,
-            limit_resource="1C0G"
+            limit_resource="1C2G"
         )
-        print(success_task.executor_config)
         self.assertEqual(1, len(success_task.executor_config))
 
         self.assertRaises(
