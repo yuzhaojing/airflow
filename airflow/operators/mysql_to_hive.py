@@ -143,7 +143,7 @@ class MySqlToHiveTransfer(BaseOperator):
                     csv_writer = csv.writer(g, delimiter=self.delimiter, encoding="utf-8")
                     field_dict = OrderedDict()
                     for field in cursor.description:
-                        field_dict[field[0]] = self.type_map(field[1]) + col_comments.get(field[0], '')
+                        field_dict['`'+field[0]+'`'] = self.type_map(field[1]) + col_comments.get(field[0], '')
 
                     rows = cursor.fetchmany(50000)
                     i = 0
