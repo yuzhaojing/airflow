@@ -2657,6 +2657,8 @@ class BaseOperator(LoggingMixin):
             raise AirflowException('limit_cpu {} is larger than max_cpu {}'.format(limit_cpu, max_cpu))
         elif int(limit_memory) > int(max_memory):
             raise AirflowException('limit_memory {}G is larger than max memory {}G'.format(limit_memory, max_memory))
+        elif int(limit_cpu) <= 0 or int(limit_memory) <= 0:
+            raise AirflowException('limit_memory and limit_cpu must larger than zero!')
 
         limit_memory = limit_memory + "Gi"
         executor_config = {
