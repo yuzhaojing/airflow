@@ -69,7 +69,8 @@ def use_zip_binary():
 
 # You don't have to use any special KubernetesExecutor configuration if you don't want to
 start_task = PythonOperator(
-    task_id="start_task", python_callable=print_stuff, dag=dag
+    task_id="start_task", python_callable=print_stuff, dag=dag,
+    limit_resource="1C2G"
 )
 
 # But you can if you want to

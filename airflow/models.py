@@ -22,6 +22,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from typing import Any, Tuple
+
 from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
@@ -2504,6 +2506,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
+            limit_resource=configuration.conf.get('core', 'pod_default_resource'),
             inlets=None,
             outlets=None,
             *args,
@@ -2587,8 +2590,10 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
-        self.executor_config = executor_config or {}
-
+        if limit_resource:
+            self.executor_config = self.transform(limit_resource=limit_resource)
+        else:
+            self.executor_config = executor_config or {}
         # Private attributes
         self._upstream_task_ids = set()
         self._downstream_task_ids = set()
@@ -2642,6 +2647,48 @@ class BaseOperator(LoggingMixin):
             'on_success_callback',
             'on_retry_callback',
         }
+
+    def transform(self, limit_resource):
+        max_resource = configuration.conf.get('core', 'pod_max_resource')
+        max_cpu, max_memory = self.parse_resource(resource=max_resource)
+        limit_cpu, limit_memory = self.parse_resource(resource=limit_resource)
+
+        if int(limit_cpu) > int(max_cpu):
+            raise AirflowException('limit_cpu {} is larger than max_cpu {}'.format(limit_cpu, max_cpu))
+        elif int(limit_memory) > int(max_memory):
+            raise AirflowException('limit_memory {}G is larger than max memory {}G'.format(limit_memory, max_memory))
+        elif int(limit_cpu) <= 0 or int(limit_memory) <= 0:
+            raise AirflowException('limit_memory and limit_cpu must larger than zero!')
+
+        limit_memory = limit_memory + "Gi"
+        executor_config = {
+            "KubernetesExecutor": {"request_memory": "256Mi",
+                                   "limit_memory": limit_memory,
+                                   "request_cpu": "100m",
+                                   "limit_cpu": limit_cpu}}
+        return executor_config
+
+    @staticmethod
+    def parse_resource(resource):
+        if resource.__contains__("C") and resource.__contains__("G"):
+            arr = resource.split("C")
+            limit_cpu = arr[0]
+            if not limit_cpu.isdigit():
+                raise AirflowException('limit_cpu {} is Invalid values, example: limit_resource="1C1G"'.format(limit_cpu))
+            limit_memory = arr[1]
+            if limit_memory.endswith("G"):
+                memory_size = limit_memory.split("G")[0]
+                if not memory_size.isdigit():
+                    raise AirflowException(
+                        'limit_memory {} is Invalid values, example: limit_resource="1C1G"'.format(limit_memory))
+            else:
+                raise AirflowException(
+                    'limit_memory {} is Invalid values, example: limit_resource="1C1G"'.format(limit_memory))
+
+            return limit_cpu, memory_size
+        else:
+            raise AirflowException(
+                'limit_resource {} is Invalid values, example: limit_resource="1C1G"'.format(resource))
 
     def __eq__(self, other):
         if (type(self) == type(other) and
