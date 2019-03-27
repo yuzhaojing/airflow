@@ -79,3 +79,8 @@ class BaseOperatorTest(unittest.TestCase):
             AirflowException,
             PythonOperator, task_id="start_task", python_callable=print_stuff,
             dag=dag, limit_resource="1G")
+
+        self.assertRaises(
+            AirflowException,
+            PythonOperator, task_id="start_task", python_callable=print_stuff,
+            dag=dag, limit_resource="1C0G")
