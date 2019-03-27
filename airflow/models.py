@@ -22,6 +22,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from typing import Any, Tuple
+
 from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
@@ -2468,7 +2470,6 @@ class BaseOperator(LoggingMixin):
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
-    default_resource = "1C1G"
 
     @apply_defaults
     def __init__(
@@ -2505,7 +2506,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
-            limit_resource=default_resource,
+            limit_resource=configuration.conf.get('core', 'pod_default_resource'),
             inlets=None,
             outlets=None,
             *args,
@@ -2648,36 +2649,44 @@ class BaseOperator(LoggingMixin):
         }
 
     def transform(self, limit_resource):
-        max_core = int(configuration.conf.get('core', 'pod_max_core'))
-        max_memory = int(configuration.conf.get('core', 'pod_max_memory'))
-        if limit_resource.__contains__("C") and limit_resource.__contains__("G"):
-            arr = limit_resource.split("C")
+        max_resource = configuration.conf.get('core', 'pod_max_resource')
+        max_cpu, max_memory = self.parse_resource(resource=max_resource)
+        limit_cpu, limit_memory = self.parse_resource(resource=limit_resource)
+
+        if int(limit_cpu) > int(max_cpu):
+            raise AirflowException('limit_cpu {} is larger than max_cpu {}'.format(limit_cpu, max_cpu))
+        elif int(limit_memory) > int(max_memory):
+            raise AirflowException('limit_memory {}G is larger than max memory {}G'.format(limit_memory, max_memory))
+
+        limit_memory = limit_memory + "Gi"
+        executor_config = {
+            "KubernetesExecutor": {"request_memory": "256Mi",
+                                   "limit_memory": limit_memory,
+                                   "request_cpu": "100m",
+                                   "limit_cpu": limit_cpu}}
+        return executor_config
+
+    @staticmethod
+    def parse_resource(resource):
+        if resource.__contains__("C") and resource.__contains__("G"):
+            arr = resource.split("C")
             limit_cpu = arr[0]
             if not limit_cpu.isdigit():
                 raise AirflowException('limit_cpu {} is Invalid values, example: limit_resource="1C1G"'.format(limit_cpu))
-            elif int(limit_cpu) > max_core:
-                raise AirflowException('limit_cpu {} is larger than max cpu {}'.format(limit_cpu, max_core))
             limit_memory = arr[1]
             if limit_memory.endswith("G"):
                 memory_size = limit_memory.split("G")[0]
                 if not memory_size.isdigit():
                     raise AirflowException(
                         'limit_memory {} is Invalid values, example: limit_resource="1C1G"'.format(limit_memory))
-                elif int(memory_size) > max_memory:
-                    raise AirflowException('limit_memory {} is larger than max memory {}G'.format(limit_memory, max_memory))
             else:
                 raise AirflowException(
                     'limit_memory {} is Invalid values, example: limit_resource="1C1G"'.format(limit_memory))
-            limit_memory = limit_memory + "i"
-            executor_config = {
-                "KubernetesExecutor": {"request_memory": "256Mi",
-                                       "limit_memory": limit_memory,
-                                       "request_cpu": "100m",
-                                       "limit_cpu": limit_cpu}}
-            return executor_config
+
+            return limit_cpu, memory_size
         else:
             raise AirflowException(
-                'limit_resource {} is Invalid values, example: limit_resource="1C1G"'.format(limit_resource))
+                'limit_resource {} is Invalid values, example: limit_resource="1C1G"'.format(resource))
 
     def __eq__(self, other):
         if (type(self) == type(other) and
