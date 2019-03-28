@@ -2591,7 +2591,7 @@ class BaseOperator(LoggingMixin):
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         if limit_resource:
-            if not executor_config:
+            if executor_config:
                 items = dict(executor_config.get("KubernetesExecutor"), **self.transform(limit_resource=limit_resource).get("KubernetesExecutor"))
                 self.executor_config = {"KubernetesExecutor": items}
             else:
