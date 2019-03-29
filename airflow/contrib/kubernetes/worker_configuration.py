@@ -249,7 +249,7 @@ class WorkerConfiguration(LoggingMixin):
 
         affinity = kube_executor_config.affinity or self.kube_config.kube_affinity
         tolerations = kube_executor_config.tolerations or self.kube_config.kube_tolerations
-        envs = dict(kube_executor_config.envs, **self._get_environment())
+        envs = dict(self._get_environment(), **kube_executor_config.envs)
         return Pod(
             namespace=namespace,
             name=pod_id,
