@@ -138,7 +138,7 @@ class MySqlToHiveTransfer(BaseOperator):
         self.log.info("Dumping MySQL query results to local file")
         try:
             cursor.execute(self.sql)
-            with NamedTemporaryFile("wb", suffix='.gz', dir=self.temp_dir) as f:
+            with NamedTemporaryFile("wb", suffix='.gz', dir=self.temp_dir, delete=False) as f:
                 with gzip.GzipFile(mode='wb', fileobj=f) as g:
                     csv_writer = csv.writer(g, delimiter=self.delimiter, encoding="utf-8")
                     field_dict = OrderedDict()
@@ -154,20 +154,20 @@ class MySqlToHiveTransfer(BaseOperator):
                         rows = cursor.fetchmany(50000)
 
                     g.flush()
-                    self.log.info("Loading file into Hive")
-                    hive.load_file(
-                        g.name,
-                        self.hive_table,
-                        field_dict=field_dict,
-                        create=self.create,
-                        partition=self.partition,
-                        delimiter=self.delimiter,
-                        recreate=self.recreate,
-                        tblproperties=self.tblproperties)
-
+            self.log.info("Loading file into Hive")
+            hive.load_file(
+                f.name,
+                self.hive_table,
+                field_dict=field_dict,
+                create=self.create,
+                partition=self.partition,
+                delimiter=self.delimiter,
+                recreate=self.recreate,
+                tblproperties=self.tblproperties)
+            os.remove(f.name)
         except OSError as e:
             self.log.error("Can not remove temp files, error is %s" % e)
-
         finally:
+            self.log.info('Close mysql connection')
             cursor.close()
             conn.close()

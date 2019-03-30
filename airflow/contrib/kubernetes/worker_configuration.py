@@ -249,7 +249,7 @@ class WorkerConfiguration(LoggingMixin):
 
         affinity = kube_executor_config.affinity or self.kube_config.kube_affinity
         tolerations = kube_executor_config.tolerations or self.kube_config.kube_tolerations
-
+        envs = dict(self._get_environment(), **kube_executor_config.envs)
         return Pod(
             namespace=namespace,
             name=pod_id,
@@ -265,7 +265,7 @@ class WorkerConfiguration(LoggingMixin):
                 'execution_date': execution_date,
                 'try_number': str(try_number),
             },
-            envs=self._get_environment(),
+            envs=envs,
             secrets=self._get_secrets(),
             service_account_name=self.kube_config.worker_service_account_name,
             image_pull_secrets=self.kube_config.image_pull_secrets,
