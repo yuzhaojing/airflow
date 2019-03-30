@@ -131,7 +131,8 @@ class MySqlToHiveTransfer(BaseOperator):
         try:
             cursor.execute(col_sql)
             for row in cursor.fetchall():
-                col_comments[row[0]] = " comment '%s' " % (row[1], )
+                comment = row[1].replace("'", "\\'") if row[1] else ''
+                col_comments[row[0]] = " comment '%s' " % (comment, )
         except MySQLdb.Error as e:
             self.log.error("failed to exec %s, error is :%s", col_sql, str(e))
 
