@@ -42,7 +42,7 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, hostnetwork=None):
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, hostnetwork=None, envs=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -57,17 +57,18 @@ class KubernetesExecutorConfig:
         self.volume_mounts = volume_mounts
         self.tolerations = tolerations
         self.hostnetwork = hostnetwork
+        self.envs = envs
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={}, tolerations={}, hostnetwork={})" \
+               "volume_mounts={}, tolerations={}, hostnetwork={}, envs={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
                     self.affinity, self.annotations, self.volumes, self.volume_mounts,
-                    self.tolerations, self.hostnetwork)
+                    self.tolerations, self.hostnetwork, self.envs)
 
     @staticmethod
     def from_dict(obj):
@@ -95,6 +96,7 @@ class KubernetesExecutorConfig:
             volume_mounts=namespaced.get('volume_mounts', []),
             tolerations=namespaced.get('tolerations', None),
             hostnetwork=namespaced.get('hostnetwork', None),
+            envs=namespaced.get('envs', {}),
         )
 
     def as_dict(self):
@@ -113,6 +115,7 @@ class KubernetesExecutorConfig:
             'volume_mounts': self.volume_mounts,
             'tolerations': self.tolerations,
             'hostnetwork': self.hostnetwork,
+            'envs': self.envs,
         }
 
 
