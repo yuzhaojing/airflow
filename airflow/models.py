@@ -902,6 +902,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    pod_id = Column(String(ID_LEN))
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),

@@ -127,6 +127,7 @@ class KubeConfig:
         self.airflow_home = configuration.get(self.core_section, 'airflow_home')
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
+        self.sql_alchemy_conn = configuration.getint(self.core_section, 'sql_alchemy_conn')
         self.worker_container_repository = configuration.get(
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
@@ -398,9 +399,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
         dag_id, task_id, execution_date, try_number = key
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", self.kube_config.kube_image)
+        pod_id = self._create_pod_id(dag_id, task_id)
+        self._insert_pod_id(dag_id, task_id, pod_id, execution_date)
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, worker_uuid=self.worker_uuid,
-            pod_id=self._create_pod_id(dag_id, task_id),
+            pod_id=pod_id,
             dag_id=dag_id, task_id=task_id, try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
@@ -408,6 +411,18 @@ class AirflowKubernetesScheduler(LoggingMixin):
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod)
         self.log.debug("Kubernetes Job created!")
+
+    def _insert_pod_id(self, dag_id, task_id, pod_id, execution_date):
+        with create_session() as session:
+            item = session.query(TaskInstance).filter_by(
+                dag_id=dag_id,
+                task_id=task_id,
+                execution_date=execution_date
+            ).one()
+            if pod_id:
+                item.pod_id = pod_id
+                session.add(item)
+        self.log.debug("Kubernetes dag_id: %s, task_id: %s, execution_date: %s, pod_id: %s insert mysql", dag_id, task_id, execution_date, pod_id)
 
     def delete_pod(self, pod_id):
         if self.kube_config.delete_worker_pods:
