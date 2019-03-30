@@ -36,7 +36,7 @@ from airflow.utils.db import provide_session, create_session
 from airflow import configuration
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-import MySQLdb
+
 
 class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
