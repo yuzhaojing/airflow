@@ -19,6 +19,8 @@
 
 from __future__ import print_function, unicode_literals
 
+import os
+import sys
 import unittest
 from datetime import timedelta
 
@@ -60,7 +62,7 @@ class BaseOperatorTest(unittest.TestCase):
     def test_base_operator_run(self):
         """Tests that the python callable is invoked on task run."""
         success_task = PythonOperator(
-            task_id="start_task", python_callable=print_stuff, dag=dag,
+            task_id=os.path.abspath(__file__).replace("/", "_"), python_callable=print_stuff, dag=dag,
             limit_resource="1C2G"
         )
         self.assertEqual(1, len(success_task.executor_config))
