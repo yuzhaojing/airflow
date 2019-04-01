@@ -130,7 +130,7 @@ class KubeConfig:
         self.airflow_home = configuration.get(self.core_section, 'airflow_home')
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
-        self.sql_alchemy_conn = configuration.getint(self.core_section, 'sql_alchemy_conn')
+        self.sql_alchemy_conn = configuration.get(self.core_section, 'sql_alchemy_conn')
         self.worker_container_repository = configuration.get(
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
