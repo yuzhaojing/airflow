@@ -416,12 +416,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes Job created!")
 
     def _insert_pod_id(self, dag_id, task_id, pod_id, execution_date):
+        self.log.debug("执行将pod_id插入task_instance表")
         with create_session() as session:
             item = session.query(TaskInstance).filter_by(
                 dag_id=dag_id,
                 task_id=task_id,
                 execution_date=execution_date
             ).one()
+            self.log.debug("查询出的task_instance数据: %s", item)
             if pod_id:
                 item.pod_id = pod_id
                 session.add(item)
