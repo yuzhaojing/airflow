@@ -205,9 +205,10 @@ class BaseJob(Base, LoggingMixin):
             except SystemExit:
                 # In case of ^C or SIGTERM
                 self.state = State.SUCCESS
-            except Exception:
+            except Exception as e:
                 self.state = State.FAILED
-                raise
+                self.log.error("scheduler is exit, Exception is: %s", str(e))
+                sys.exit(1)
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
@@ -1317,6 +1318,8 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: SimpleDagBag
         """
         TI = models.TaskInstance
+
+        start_time = time.time()
         # actually enqueue them
         for task_instance in task_instances:
             simple_dag = simple_dag_bag.get_dag(task_instance.dag_id)
@@ -1355,6 +1358,10 @@ class SchedulerJob(BaseJob):
                 command,
                 priority=priority,
                 queue=queue)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        self.log.info("Send all simple_dag to queue cost %.2f seconds", duration)
 
     @provide_session
     def _execute_task_instances(self,
@@ -1558,6 +1565,7 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Harvesting DAG parsing results")
             simple_dags = self.processor_agent.harvest_simple_dags()
+            self.log.info("simple_dags size is: %d", simple_dags.__len__())
 
             # Send tasks for execution if available
             simple_dag_bag = SimpleDagBag(simple_dags)
