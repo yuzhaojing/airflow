@@ -205,9 +205,8 @@ class BaseJob(Base, LoggingMixin):
             except SystemExit:
                 # In case of ^C or SIGTERM
                 self.state = State.SUCCESS
-            except Exception as e:
+            except Exception:
                 self.state = State.FAILED
-                self.log.error("scheduler is exit, error is:", str(e))
                 raise
             finally:
                 self.end_date = timezone.utcnow()
@@ -1547,10 +1546,6 @@ class SchedulerJob(BaseJob):
         while (timezone.utcnow() - execute_start_time).total_seconds() < \
                 self.run_duration or self.run_duration < 0:
             self.log.debug("Starting Loop...")
-            import random
-            if random.random(1, 100) == 66:
-                self.log.debug("手动造异常，模拟scheduler退出异常")
-                raise AirflowException("scheduler exit!")
             loop_start_time = time.time()
 
             if self.using_sqlite:
