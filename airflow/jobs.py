@@ -205,9 +205,10 @@ class BaseJob(Base, LoggingMixin):
             except SystemExit:
                 # In case of ^C or SIGTERM
                 self.state = State.SUCCESS
-            except Exception:
+            except Exception as e:
                 self.state = State.FAILED
-                raise
+                self.log.error("scheduler is exit, Exception is: %s", str(e))
+                sys.exit(1)
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
@@ -1558,6 +1559,11 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Harvesting DAG parsing results")
             simple_dags = self.processor_agent.harvest_simple_dags()
+            self.log.info("simple_dags size is: %d", simple_dags.__len__())
+            self.log.info("================================================================================")
+            for i, simple_dag in enumerate(simple_dags):
+                self.log.info("index=%d         dag_id=%s", i, simple_dag.dag_id)
+            self.log.info("================================================================================")
 
             # Send tasks for execution if available
             simple_dag_bag = SimpleDagBag(simple_dags)
