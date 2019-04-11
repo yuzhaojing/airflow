@@ -207,6 +207,9 @@ class KubeConfig:
         # Optionally, write logs to a hostPath Volume
         self.tmp_volume_host = conf.get(self.kubernetes_section, 'tmp_volume_host')
 
+        # Kubernetes Executor batch size
+        self.kubernetes_executor_batch_size = conf.get(self.kubernetes_section, 'kubernetes_executor_batch_size')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
 
@@ -685,9 +688,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
-        if not self.task_queue.empty():
+        cnt_to_processed = self.kube_config.kubernetes_executor_batch_size
+        while not self.task_queue.empty() and cnt_to_processed != 0:
             key, command, kube_executor_config = self.task_queue.get()
             self.kube_scheduler.run_next((key, command, kube_executor_config))
+            cnt_to_processed = cnt_to_processed - 1
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
