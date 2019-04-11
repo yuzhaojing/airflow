@@ -688,7 +688,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
-        cnt_to_processed = self.kube_config.kubernetes_executor_batch_size
+        cnt_to_processed = int(self.kube_config.kubernetes_executor_batch_size)
         while not self.task_queue.empty() and cnt_to_processed != 0:
             key, command, kube_executor_config = self.task_queue.get()
             self.kube_scheduler.run_next((key, command, kube_executor_config))
