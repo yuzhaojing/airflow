@@ -616,7 +616,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 ).update({TaskInstance.state: State.NONE})
 
         Stats.gauge(
-            'kubernetes_executor_recovery', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+            'kubernetes_executor_recovery_time', (timezone.utcnow() - start_dttm).total_seconds(), 1)
 
     def _inject_secrets(self):
         def _create_or_update_secret(secret_name, secret_path):
