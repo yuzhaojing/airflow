@@ -28,7 +28,7 @@ from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
-from airflow.executors.base_executor import BaseExecutor, Stats
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
 from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
 from airflow.utils import timezone
@@ -616,7 +616,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 ).update({TaskInstance.state: State.NONE})
 
         Stats.gauge(
-            'kubernetes_recovery', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+            'kubernetes_executor_recovery', (timezone.utcnow() - start_dttm).total_seconds(), 1)
 
     def _inject_secrets(self):
         def _create_or_update_secret(secret_name, secret_path):

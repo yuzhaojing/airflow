@@ -120,9 +120,9 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s in queue", len(self.queued_tasks))
         self.log.debug("%s open slots", open_slots)
 
-        Stats.gauge("running_task_instances", len(self.running), 1)
-        Stats.gauge("scheduler_queue", len(self.queued_tasks), 1)
-        Stats.gauge("open_slots", len(self.queued_tasks), 1)
+        Stats.gauge("executor_running_task_instances", len(self.running), 1)
+        Stats.gauge("executor_scheduler_queue", len(self.queued_tasks), 1)
+        Stats.gauge("executor_open_slots", open_slots, 1)
 
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
