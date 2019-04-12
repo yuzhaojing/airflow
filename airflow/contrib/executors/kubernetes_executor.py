@@ -31,11 +31,14 @@ from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
 from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
+from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
-from airflow import configuration
+from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+Stats = settings.Stats
 
 
 class KubernetesExecutorConfig:
@@ -583,6 +586,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         proper support
         for State.LAUNCHED
         """
+        start_dttm = timezone.utcnow()
+
         queued_tasks = session\
             .query(TaskInstance)\
             .filter(TaskInstance.state == State.QUEUED).all()
@@ -609,6 +614,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     TaskInstance.task_id == task.task_id,
                     TaskInstance.execution_date == task.execution_date
                 ).update({TaskInstance.state: State.NONE})
+
+        Stats.gauge(
+            'kubernetes_executor_recovery_time', (timezone.utcnow() - start_dttm).total_seconds(), 1)
 
     def _inject_secrets(self):
         def _create_or_update_secret(secret_name, secret_path):
