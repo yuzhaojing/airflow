@@ -34,9 +34,11 @@ from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifi
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
-from airflow import configuration
+from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+Stats = settings.Stats
 
 
 class KubernetesExecutorConfig:
