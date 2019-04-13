@@ -18,25 +18,36 @@
 import base64
 import json
 import multiprocessing
+import os
+import logging
+from importlib import import_module
 from queue import Queue
-from dateutil import parser
 from uuid import uuid4
+
 import kubernetes
+from dateutil import parser
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
-from airflow.configuration import conf
-from airflow.contrib.kubernetes.pod_launcher import PodLauncher
-from airflow.contrib.kubernetes.kube_client import get_kube_client
-from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
-from airflow.executors.base_executor import BaseExecutor
-from airflow.executors import Executors
-from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
-from airflow.utils import timezone
-from airflow.utils.state import State
-from airflow.utils.db import provide_session, create_session
+from psutil.tests import reload_module
+
+import airflow.models
 from airflow import configuration, settings
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow import configuration as conf
+from airflow.configuration import conf
+from airflow.contrib.kubernetes.kube_client import get_kube_client
+from airflow.contrib.kubernetes.pod_launcher import PodLauncher
+from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
+from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowException
+from airflow.executors import Executors
+from airflow.executors.base_executor import BaseExecutor
+from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
+from airflow.settings import logging_class_path
+from airflow.utils import timezone
+from airflow.utils.db import create_session
+from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 Stats = settings.Stats
 
@@ -600,16 +611,24 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         )
 
         def recovery(task):
+            os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
+            # Replicating the behavior of how logging module was loaded
+            # in logging_config.py
+            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
+            reload_module(airflow.settings)
+            del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
+            log = logging.getLogger('airflow.processor_manager')
+
             dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
                 .format(task.dag_id, task.task_id,
                         AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
                             task.execution_date), self.worker_uuid)
             kwargs = dict(label_selector=dict_string)
-            self.log.debug("Start recover kubernetes pod.")
+            log.debug("Start recover kubernetes pod.")
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)
             if len(pod_list.items) == 0:
-                self.log.info(
+                log.info(
                     'TaskInstance: %s found in queued state but was not launched, '
                     'rescheduling', task
                 )
