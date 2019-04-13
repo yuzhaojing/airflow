@@ -1482,6 +1482,8 @@ class SchedulerJob(BaseJob):
 
     def _execute(self):
         self.log.info("Starting the scheduler")
+        # test
+        Stats.gauge('executor_open_slots_len', 1, 1)
 
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = False
