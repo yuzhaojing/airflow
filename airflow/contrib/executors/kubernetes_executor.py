@@ -213,6 +213,9 @@ class KubeConfig:
         # Kubernetes Executor batch size
         self.kubernetes_executor_batch_size = conf.get(self.kubernetes_section, 'kubernetes_executor_batch_size')
 
+        # Kubernetes recovery parallelism
+        self.kubernetes_executor_recovery_parallelism = conf.get(self.kubernetes_section, 'kubernetes_executor_recovery_parallelism')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
 
@@ -596,7 +599,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             len(queued_tasks)
         )
 
-        for task in queued_tasks:
+        def recovery(task):
             dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
                 .format(task.dag_id, task.task_id,
                         AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
@@ -614,6 +617,14 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     TaskInstance.task_id == task.task_id,
                     TaskInstance.execution_date == task.execution_date
                 ).update({TaskInstance.state: State.NONE})
+
+        parallelism = int(self.kube_config.kubernetes_executor_recovery_parallelism)
+        self.log.info('Using parallelism %d to recover kubernetes pod.' % parallelism)
+        pool = multiprocessing.Pool(parallelism)
+        for task in queued_tasks:
+            pool.apply_async(recovery,  (task, ))
+        pool.close()
+        pool.join()
 
         Stats.gauge(
             'kubernetes_executor_recovery_time', (timezone.utcnow() - start_dttm).total_seconds(), 1)
