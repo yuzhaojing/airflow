@@ -605,6 +605,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
                             task.execution_date), self.worker_uuid)
             kwargs = dict(label_selector=dict_string)
+            self.log.debug("Start recover kubernetes pod.")
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)
             if len(pod_list.items) == 0:
@@ -621,8 +622,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         parallelism = int(self.kube_config.kubernetes_executor_recovery_parallelism)
         self.log.info('Using parallelism %d to recover kubernetes pod.' % parallelism)
         pool = multiprocessing.Pool(parallelism)
-        for task in queued_tasks:
-            pool.apply_async(recovery,  (task, ))
+        for ta in queued_tasks:
+            pool.apply_async(recovery,  (ta, ))
         pool.close()
         pool.join()
 
