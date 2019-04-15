@@ -156,8 +156,8 @@ class BaseExecutor(LoggingMixin):
                     'Task is already running, not sending to '
                     'executor: {}'.format(key))
 
-        # TODO: scheduler to task 的平均时间
-        avg_stq_time = sum(sq_to_tq_time) / sq_to_tq_time.__len__()
+        sq2tq_len = sq_to_tq_time.__len__()
+        avg_stq_time = sum(sq_to_tq_time) / sq2tq_len if sq2tq_len else 0
         Stats.gauge('scheduler_queue_to_task_queue_time', avg_stq_time, 1)
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
