@@ -18,9 +18,9 @@
 import base64
 import json
 import multiprocessing
-import os
 import logging
-from importlib import import_module
+import os
+import sys
 from queue import Queue
 from uuid import uuid4
 
@@ -28,9 +28,6 @@ import kubernetes
 from dateutil import parser
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
-from psutil.tests import reload_module
-
-import airflow.models
 from airflow import configuration, settings
 from airflow import configuration as conf
 from airflow.configuration import conf
@@ -42,11 +39,10 @@ from airflow.exceptions import AirflowException
 from airflow.executors import Executors
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
-from airflow.settings import logging_class_path
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
 Stats = settings.Stats
@@ -225,7 +221,8 @@ class KubeConfig:
         self.kubernetes_executor_batch_size = conf.get(self.kubernetes_section, 'kubernetes_executor_batch_size')
 
         # Kubernetes recovery parallelism
-        self.kubernetes_executor_recovery_parallelism = conf.get(self.kubernetes_section, 'kubernetes_executor_recovery_parallelism')
+        self.kubernetes_executor_recovery_parallelism = conf.get(self.kubernetes_section,
+                                                                 'kubernetes_executor_recovery_parallelism')
 
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
@@ -281,9 +278,9 @@ class KubeConfig:
     def _validate(self):
         # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
         if not self.dags_volume_claim \
-           and not self.dags_volume_host \
-           and not self.dags_in_image \
-           and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
+            and not self.dags_volume_host \
+            and not self.dags_in_image \
+            and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
                 'config section: `dags_volume_claim` '
@@ -447,7 +444,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             if pod_id:
                 item.pod_id = pod_id
                 session.add(item)
-        self.log.debug("Kubernetes dag_id: %s, task_id: %s, execution_date: %s, pod_id: %s insert mysql", dag_id, task_id, execution_date, pod_id)
+        self.log.debug("Kubernetes dag_id: %s, task_id: %s, execution_date: %s, pod_id: %s insert mysql", dag_id,
+                       task_id, execution_date, pod_id)
 
     def delete_pod(self, pod_id):
         if self.kube_config.delete_worker_pods:
@@ -602,8 +600,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         """
         start_dttm = timezone.utcnow()
 
-        queued_tasks = session\
-            .query(TaskInstance)\
+        queued_tasks = session \
+            .query(TaskInstance) \
             .filter(TaskInstance.state == State.QUEUED).all()
         self.log.info(
             'When executor started up, found %s queued task instances',
@@ -611,38 +609,51 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         )
 
         def recovery(task):
-            os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
-            # Replicating the behavior of how logging module was loaded
-            # in logging_config.py
-            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
-            reload_module(airflow.settings)
-            del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
-            log = logging.getLogger('airflow.processor_manager')
+            log = logging.getLogger("airflow.processor")
+            execution_date = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                task.execution_date)
+            filename = "{}-{}-{}".format(task.dag_id, task.task_id, execution_date)
 
-            dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
-                .format(task.dag_id, task.task_id,
-                        AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
-                            task.execution_date), self.worker_uuid)
-            kwargs = dict(label_selector=dict_string)
-            log.debug("Start recover kubernetes pod.")
-            pod_list = self.kube_client.list_namespaced_pod(
-                self.kube_config.kube_namespace, **kwargs)
-            if len(pod_list.items) == 0:
-                log.info(
-                    'TaskInstance: %s found in queued state but was not launched, '
-                    'rescheduling', task
-                )
-                session.query(TaskInstance).filter(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.execution_date == task.execution_date
-                ).update({TaskInstance.state: State.NONE})
+            stdout = StreamLogWriter(log, logging.INFO)
+            stderr = StreamLogWriter(log, logging.WARN)
+
+            set_context(log, filename)
+
+            try:
+                # redirect stdout/stderr to log
+                sys.stdout = stdout
+                sys.stderr = stderr
+
+                dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
+                    .format(task.dag_id, task.task_id, execution_date, self.worker_uuid)
+                kwargs = dict(label_selector=dict_string)
+                log.debug("Started process (PID=%s) to recover kubernetes pod on %s",
+                          os.getpid(), filename)
+                pod_list = self.kube_client.list_namespaced_pod(
+                    self.kube_config.kube_namespace, **kwargs)
+                if len(pod_list.items) == 0:
+                    log.info(
+                        'TaskInstance: %s found in queued state but was not launched, '
+                        'rescheduling', task
+                    )
+                    session.query(TaskInstance).filter(
+                        TaskInstance.dag_id == task.dag_id,
+                        TaskInstance.task_id == task.task_id,
+                        TaskInstance.execution_date == task.execution_date
+                    ).update({TaskInstance.state: State.NONE})
+            except Exception:
+                # Log exceptions through the logging framework.
+                log.exception("Got an exception! Propagating...")
+                raise
+            finally:
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
 
         parallelism = int(self.kube_config.kubernetes_executor_recovery_parallelism)
         self.log.info('Using parallelism %d to recover kubernetes pod.' % parallelism)
         pool = multiprocessing.Pool(parallelism)
         for ta in queued_tasks:
-            pool.apply_async(recovery,  (ta, ))
+            pool.apply_async(recovery, (ta,))
         pool.close()
         pool.join()
 
