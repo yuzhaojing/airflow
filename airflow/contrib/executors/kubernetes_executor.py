@@ -610,9 +610,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
         def recovery(task):
             log = logging.getLogger("airflow.processor")
-            execution_date = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
-                task.execution_date)
-            filename = "{}-{}-{}".format(task.dag_id, task.task_id, execution_date)
+            filename = task.dag_id
 
             stdout = StreamLogWriter(log, logging.INFO)
             stderr = StreamLogWriter(log, logging.WARN)
@@ -625,10 +623,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 sys.stderr = stderr
 
                 dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
-                    .format(task.dag_id, task.task_id, execution_date, self.worker_uuid)
+                    .format(task.dag_id, task.task_id,
+                            AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                                task.execution_date), self.worker_uuid)
                 kwargs = dict(label_selector=dict_string)
-                log.debug("Started process (PID=%s) to recover kubernetes pod on %s",
-                          os.getpid(), filename)
+                log.info("Started process (PID=%s) to recover kubernetes pod on %s",
+                         os.getpid(), filename)
                 pod_list = self.kube_client.list_namespaced_pod(
                     self.kube_config.kube_namespace, **kwargs)
                 if len(pod_list.items) == 0:
