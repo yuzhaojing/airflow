@@ -62,6 +62,7 @@ from airflow.utils.state import State
 
 Base = models.Base
 ID_LEN = models.ID_LEN
+Stats = settings.Stats
 
 
 class BaseJob(Base, LoggingMixin):
@@ -1392,6 +1393,7 @@ class SchedulerJob(BaseJob):
                 items,
                 states,
                 session=session)
+            self.log.info("scheduler_harvested_queue_len = %s", len(tis_with_state_changed))
             self._enqueue_task_instances_with_queued_state(
                 simple_dag_bag,
                 tis_with_state_changed)
@@ -1567,6 +1569,7 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Harvesting DAG parsing results")
             simple_dags = self.processor_agent.harvest_simple_dags()
+            Stats.gauge('scheduler_harvesting_dags_len', simple_dags.__len__(), 1)
             self.log.info("simple_dags size is: %d", simple_dags.__len__())
 
             # Send tasks for execution if available

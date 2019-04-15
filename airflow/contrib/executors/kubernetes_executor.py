@@ -428,6 +428,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
+
+        Stats.gauge('executor_task_delay_time', (timezone.utcnow() - execution_date).total_seconds(), 1)
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod)
         self.log.debug("Kubernetes Job created!")

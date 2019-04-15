@@ -43,7 +43,7 @@ from tabulate import tabulate
 
 # To avoid circular imports
 import airflow.models
-from airflow import configuration as conf
+from airflow import configuration as conf, settings
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.settings import logging_class_path
@@ -52,6 +52,8 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
+
+Stats = settings.Stats
 
 class SimpleDag(BaseDag):
     """
@@ -510,6 +512,7 @@ class DagFileProcessorAgent(LoggingMixin):
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
         :return: List of parsing result in SimpleDag format.
         """
+        start_date = timezone.utcnow()
         # Metadata and results to be harvested can be inconsistent,
         # but it should not be a big problem.
         self._sync_metadata()
@@ -526,6 +529,8 @@ class DagFileProcessorAgent(LoggingMixin):
             simple_dags.append(self._result_queue.get())
 
         self._result_count = 0
+
+        Stats.gauge('scheduler_harvesting_time', (timezone.utcnow() - start_date).total_seconds(), 1)
 
         return simple_dags
 
