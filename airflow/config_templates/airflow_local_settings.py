@@ -39,6 +39,8 @@ BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
 
 PROCESSOR_LOG_FOLDER = conf.get('scheduler', 'CHILD_PROCESS_LOG_DIRECTORY')
 
+RECOVERY_LOG_FOLDER = conf.get('scheduler', 'CHILD_RECOVERY_LOG_DIRECTORY')
+
 DAG_PROCESSOR_MANAGER_LOG_LOCATION = \
     conf.get('core', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
@@ -84,11 +86,22 @@ DEFAULT_LOGGING_CONFIG = {
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
+        },
+        'recovery': {
+            'class': 'airflow.utils.log.file_processor_handler.FileProcessorHandler',
+            'formatter': 'airflow',
+            'base_log_folder': os.path.expanduser(RECOVERY_LOG_FOLDER),
+            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
         }
     },
     'loggers': {
         'airflow.processor': {
             'handlers': ['processor'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'airflow.recovery': {
+            'handlers': ['recovery'],
             'level': LOG_LEVEL,
             'propagate': False,
         },
