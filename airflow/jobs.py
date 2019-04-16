@@ -1521,6 +1521,7 @@ class SchedulerJob(BaseJob):
             self._execute_helper()
         finally:
             self.processor_agent.end()
+            Stats.gauge('scheduler_abnormal_exit', 0, 1)
             self.log.info("Exited execute loop")
 
     def _execute_helper(self):
@@ -1782,6 +1783,7 @@ class SchedulerJob(BaseJob):
     @provide_session
     def heartbeat_callback(self, session=None):
         Stats.incr('scheduler_heartbeat', 1, 1)
+        Stats.gauge('scheduler_abnormal_exit', 1, 1)
 
 
 class BackfillJob(BaseJob):
