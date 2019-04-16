@@ -136,6 +136,9 @@ class FileProcessorHandler(logging.Handler):
         relative_path = self._render_filename(filename)
         full_path = os.path.join(self._get_log_directory(), relative_path)
         directory = os.path.dirname(full_path)
+        logging.info("relative_path is %s.", relative_path)
+        logging.info("full_path is %s.", full_path)
+        logging.info("directory is %s.", directory)
 
         if not os.path.exists(directory):
             os.makedirs(directory)
