@@ -208,8 +208,9 @@ class BaseJob(Base, LoggingMixin):
                 self.state = State.SUCCESS
             except Exception as e:
                 self.state = State.FAILED
-                self.log.error("scheduler is exit, Exception is: %s", str(e))
-                sys.exit(1)
+                self.log.error("job is exit!")
+                logging.exception(e)
+                raise
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)

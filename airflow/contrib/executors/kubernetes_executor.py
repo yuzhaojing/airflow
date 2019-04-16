@@ -21,6 +21,7 @@ import multiprocessing
 import logging
 import os
 import sys
+import time
 from queue import Queue
 from uuid import uuid4
 
@@ -435,14 +436,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes Job created!")
 
     def _insert_pod_id(self, dag_id, task_id, pod_id, execution_date):
-        self.log.debug("执行将pod_id插入task_instance表")
         with create_session() as session:
             item = session.query(TaskInstance).filter_by(
                 dag_id=dag_id,
                 task_id=task_id,
                 execution_date=execution_date
             ).one()
-            self.log.debug("查询出的task_instance数据: %s", item)
             if pod_id:
                 item.pod_id = pod_id
                 session.add(item)
@@ -573,6 +572,65 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return None
 
 
+@provide_session
+def recovery(task, log, session=None):
+    filename = task.dag_id
+
+    start_time = time.time()
+    dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
+        .format(task.dag_id, task.task_id,
+                AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                    task.execution_date), KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid())
+    kwargs = dict(label_selector=dict_string)
+    log.info("Started process (PID=%s) to recover kubernetes pod on %s",
+             os.getpid(), filename)
+    pod_list = get_kube_client().list_namespaced_pod(
+        KubeConfig().kube_namespace, **kwargs)
+    if len(pod_list.items) == 0:
+        log.info(
+            'TaskInstance: %s found in queued state but was not launched, '
+            'rescheduling', task
+        )
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == task.dag_id,
+            TaskInstance.task_id == task.task_id,
+            TaskInstance.execution_date == task.execution_date
+        ).update({TaskInstance.state: State.NONE})
+
+    end_time = time.time()
+    log.info(
+        "Processing %s took %.3f seconds", filename, end_time - start_time
+    )
+
+
+def helper(task):
+    log = logging.getLogger("airflow.recovery")
+    filename = task.dag_id
+
+    stdout = StreamLogWriter(log, logging.INFO)
+    stderr = StreamLogWriter(log, logging.WARN)
+
+    set_context(log, filename)
+
+    try:
+        # redirect stdout/stderr to log
+        sys.stdout = stdout
+        sys.stderr = stderr
+
+        # Re-configure the ORM engine as there are issues with multiple processes
+        settings.configure_orm()
+
+        recovery(task, log)
+    except Exception:
+        # Log exceptions through the logging framework.
+        log.exception("Got an exception! Propagating...")
+        raise
+    finally:
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        settings.dispose_orm()
+
+
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def __init__(self):
         self.kube_config = KubeConfig()
@@ -610,55 +668,15 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             len(queued_tasks)
         )
 
-        def recovery(task):
-            log = logging.getLogger("airflow.processor")
-            filename = task.dag_id
-
-            stdout = StreamLogWriter(log, logging.INFO)
-            stderr = StreamLogWriter(log, logging.WARN)
-
-            set_context(log, filename)
-
-            try:
-                # redirect stdout/stderr to log
-                sys.stdout = stdout
-                sys.stderr = stderr
-
-                dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
-                    .format(task.dag_id, task.task_id,
-                            AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
-                                task.execution_date), self.worker_uuid)
-                kwargs = dict(label_selector=dict_string)
-                log.info("Started process (PID=%s) to recover kubernetes pod on %s",
-                         os.getpid(), filename)
-                pod_list = self.kube_client.list_namespaced_pod(
-                    self.kube_config.kube_namespace, **kwargs)
-                if len(pod_list.items) == 0:
-                    log.info(
-                        'TaskInstance: %s found in queued state but was not launched, '
-                        'rescheduling', task
-                    )
-                    session.query(TaskInstance).filter(
-                        TaskInstance.dag_id == task.dag_id,
-                        TaskInstance.task_id == task.task_id,
-                        TaskInstance.execution_date == task.execution_date
-                    ).update({TaskInstance.state: State.NONE})
-            except Exception:
-                # Log exceptions through the logging framework.
-                log.exception("Got an exception! Propagating...")
-                raise
-            finally:
-                sys.stdout = sys.__stdout__
-                sys.stderr = sys.__stderr__
-
         parallelism = int(self.kube_config.kubernetes_executor_recovery_parallelism)
         self.log.info('Using parallelism %d to recover kubernetes pod.' % parallelism)
         pool = multiprocessing.Pool(parallelism)
         for ta in queued_tasks:
-            pool.apply_async(recovery, (ta,))
+            pool.apply_async(helper, (ta,))
         pool.close()
         pool.join()
 
+        self.log.info('Complete to recover kubernetes pod!')
         Stats.gauge(
             'kubernetes_executor_recovery_time', (timezone.utcnow() - start_dttm).total_seconds(), 1)
 
