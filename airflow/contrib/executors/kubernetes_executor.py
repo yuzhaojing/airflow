@@ -430,7 +430,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             airflow_command=command, kube_executor_config=kube_executor_config
         )
 
-        Stats.gauge('executor_task_delay_time', (timezone.utcnow() - execution_date).total_seconds(), 1)
+        Stats.gauge('kubernetes_executor_task_delay_time', (timezone.utcnow() - execution_date).total_seconds(), 1)
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod)
         self.log.debug("Kubernetes Job created!")
@@ -749,6 +749,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_scheduler.sync()
 
         last_resource_version = None
+
+        state_start_time = time.time()
         while not self.result_queue.empty():
             results = self.result_queue.get()
             key, state, pod_id, resource_version = results
@@ -756,13 +758,20 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             self.log.info('Changing state of %s to %s', results, state)
             self._change_state(key, state, pod_id)
 
+        state_end_time = time.time()
+        Stats.gauge('kubernetes_executor_task_change_state_cost_time', state_end_time - state_start_time, 1)
+
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
         cnt_to_processed = int(self.kube_config.kubernetes_executor_batch_size)
+
+        run_start_time = time.time()
         while not self.task_queue.empty() and cnt_to_processed != 0:
             key, command, kube_executor_config = self.task_queue.get()
             self.kube_scheduler.run_next((key, command, kube_executor_config))
             cnt_to_processed = cnt_to_processed - 1
+        run_end_time = time.time()
+        Stats.gauge('kubernetes_executor_task_run_cost_time', run_end_time - run_start_time, 1)
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
