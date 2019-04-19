@@ -1223,6 +1223,7 @@ class TaskInstance(Base, LoggingMixin):
             self.state = ti.state
             self.start_date = ti.start_date
             self.end_date = ti.end_date
+            self.pod_id = ti.pod_id
             # Get the raw value of try_number column, don't read through the
             # accessor here otherwise it will be incremeneted by one already.
             self.try_number = ti._try_number
