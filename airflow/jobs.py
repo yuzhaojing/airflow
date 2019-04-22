@@ -817,6 +817,11 @@ class SchedulerJob(BaseJob):
             )
             last_scheduled_run = qry.scalar()
 
+            self.log.debug(
+                "Dag last_scheduled_run: %s.",
+                last_scheduled_run
+            )
+
             # don't schedule @once again
             if dag.schedule_interval == '@once' and last_scheduled_run:
                 return None
@@ -840,6 +845,11 @@ class SchedulerJob(BaseJob):
                 else:
                     dag.start_date = new_start
 
+            self.log.debug(
+                "Dag start_date: %s.",
+                dag.start_date
+            )
+
             next_run_date = None
             if not last_scheduled_run:
                 # First run
@@ -852,12 +862,25 @@ class SchedulerJob(BaseJob):
                     )
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
+                self.log.debug(
+                    "Dag next_run_date: %s.",
+                    next_run_date
+                )
 
             # make sure backfills are also considered
             last_run = dag.get_last_dagrun(session=session)
+            self.log.debug(
+                "Dag last_run_execution_date: %s.",
+                last_run.execution_date
+            )
             if last_run and next_run_date:
                 while next_run_date <= last_run.execution_date:
                     next_run_date = dag.following_schedule(next_run_date)
+
+            self.log.debug(
+                "Dag next_run_date_after_backfill: %s.",
+                next_run_date
+            )
 
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
