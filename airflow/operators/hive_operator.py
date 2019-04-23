@@ -139,11 +139,21 @@ class HiveOperator(BaseOperator):
             self.hiveconfs.update(context_to_airflow_vars(context))
 
         self.log.info('Passing HiveConf: %s', self.hiveconfs)
-        self.hook.get_results(
+
+        results = self.hook.get_results(
             hql=self.hql,
             schema=self.schema,
             fetch_size=self.fetch_size,
             hive_conf=self.hiveconfs)
+
+        print("\n" +
+              "=" * 40 +
+              "\n" +
+              "Hive Sql Results\n\n" +
+              results +
+              "\n" +
+              "=" * 40)
+
         # self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
     @staticmethod

@@ -842,11 +842,17 @@ class HiveServer2Hook(BaseHook):
         """
         results_iter = self._get_results(hql, schema,
                                          fetch_size=fetch_size, hive_conf=hive_conf)
-        header = next(results_iter)
         results = {
-            'data': list(results_iter),
-            'header': header
+            'data': '',
+            'header': ''
         }
+        if results_iter:
+            header = next(results_iter)
+            results = {
+                'data': list(results_iter),
+                'header': header
+            }
+
         return results
 
     def to_csv(
