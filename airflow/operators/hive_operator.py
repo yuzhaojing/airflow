@@ -146,13 +146,7 @@ class HiveOperator(BaseOperator):
             fetch_size=self.fetch_size,
             hive_conf=self.hiveconfs)
 
-        print("\n" +
-              "=" * 40 +
-              "\n" +
-              "Hive Sql Results\n\n" +
-              results +
-              "\n" +
-              "=" * 40)
+        print(results)
 
         # self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
