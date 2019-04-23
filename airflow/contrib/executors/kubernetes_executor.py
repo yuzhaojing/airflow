@@ -775,7 +775,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
-            self.kube_scheduler.delete_pod(pod_id)
+            if state == State.SUCCESS:
+                self.kube_scheduler.delete_pod(pod_id)
             try:
                 self.log.info('Deleted pod: %s', str(key))
                 self.running.pop(key)
