@@ -846,12 +846,15 @@ class HiveServer2Hook(BaseHook):
             'data': '',
             'header': ''
         }
-        if results_iter:
+
+        try:
             header = next(results_iter)
             results = {
                 'data': list(results_iter),
                 'header': header
             }
+        except StopIteration:
+            self.log.info("This hql returns no value.")
 
         return results
 
