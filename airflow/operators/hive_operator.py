@@ -72,6 +72,7 @@ class HiveOperator(BaseOperator):
             hql=None,
             hql_file=None,
             hive_cli_conn_id='hive_cli_default',
+            hive_server_conn_id='hive_server_default',
             schema='default',
             hiveconfs=None,
             fetch_size=None,
@@ -86,6 +87,7 @@ class HiveOperator(BaseOperator):
         super(HiveOperator, self).__init__(*args, **kwargs)
         self.hql = self.get_hql(hql, hql_file)
         self.hive_cli_conn_id = hive_cli_conn_id
+        self.hive_server_conn_id = hive_server_conn_id
         self.schema = schema
         self.hiveconfs = hiveconfs or {}
         self.fetch_size = fetch_size
@@ -105,7 +107,7 @@ class HiveOperator(BaseOperator):
         self.hook = None
 
     def get_hook(self):
-        return HiveServer2Hook(hiveserver2_conn_id=self.hive_cli_conn_id)
+        return HiveServer2Hook(hiveserver2_conn_id=self.hive_server_conn_id)
         # return HiveCliHook(
         #     hive_cli_conn_id=self.hive_cli_conn_id,
         #     run_as=self.run_as,
