@@ -33,6 +33,7 @@ from past.builtins import basestring
 from past.builtins import unicode
 from six.moves import zip
 
+import pysnooper
 import airflow.security.utils as utils
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -80,6 +81,7 @@ class HiveCliHook(BaseHook):
     :type  mapred_job_name: string
     """
 
+
     def __init__(
             self,
             hive_cli_conn_id="hive_cli_default",
@@ -106,6 +108,7 @@ class HiveCliHook(BaseHook):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
+    @pysnooper.snoop()
     def _prepare_cli_cmd(self):
         """
         This function creates the command list from available information
