@@ -364,18 +364,23 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
+    @pysnooper.snoop()
     def process_common(self, filepath, only_if_updated=True, safe_mode=True, is_validate=False):
         """
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
         """
         found_dags = []
+        mods = []
+        is_zipfile = False
+        file_last_changed_on_disk = None
+        mod_name = None
 
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
         # todo: raise exception?
         if filepath is None or not os.path.isfile(filepath):
-            return found_dags
+            return [found_dags, mods, is_zipfile, file_last_changed_on_disk, mod_name]
 
         try:
             # This failed before in what may have been a git sync
@@ -384,13 +389,12 @@ class DagBag(BaseDagBag, LoggingMixin):
             if only_if_updated \
                 and filepath in self.file_last_changed \
                 and file_last_changed_on_disk == self.file_last_changed[filepath]:
-                return found_dags
+                return [found_dags, mods, is_zipfile, file_last_changed_on_disk, mod_name]
 
         except Exception as e:
             self.log.exception(e)
-            return found_dags
+            return [found_dags, mods, is_zipfile, file_last_changed_on_disk, mod_name]
 
-        mods = []
         is_zipfile = zipfile.is_zipfile(filepath)
         if not is_zipfile:
             if safe_mode and os.path.isfile(filepath):
@@ -405,7 +409,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                             self.log.info(
                                 "File %s assumed to contain no DAGs. Skipping.",
                                 filepath)
-                        return found_dags
+                        return [found_dags, mods, is_zipfile, file_last_changed_on_disk, mod_name]
 
             self.log.debug("Importing %s", filepath)
             org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
