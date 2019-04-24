@@ -842,11 +842,20 @@ class HiveServer2Hook(BaseHook):
         """
         results_iter = self._get_results(hql, schema,
                                          fetch_size=fetch_size, hive_conf=hive_conf)
-        header = next(results_iter)
         results = {
-            'data': list(results_iter),
-            'header': header
+            'data': '',
+            'header': ''
         }
+
+        try:
+            header = next(results_iter)
+            results = {
+                'data': list(results_iter),
+                'header': header
+            }
+        except StopIteration:
+            self.log.info("This hql returns no value.")
+
         return results
 
     def to_csv(
