@@ -21,8 +21,7 @@ from __future__ import unicode_literals
 
 import re
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.hive_hooks import HiveServer2Hook
+from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -68,14 +67,10 @@ class HiveOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            hql=None,
-            hql_file=None,
+            self, hql,
             hive_cli_conn_id='hive_cli_default',
-            hive_server_conn_id='hive_server_default',
             schema='default',
             hiveconfs=None,
-            fetch_size=None,
             hiveconf_jinja_translate=False,
             script_begin_tag=None,
             run_as_owner=False,
@@ -85,12 +80,10 @@ class HiveOperator(BaseOperator):
             *args, **kwargs):
 
         super(HiveOperator, self).__init__(*args, **kwargs)
-        self.hql = self.get_hql(hql, hql_file)
+        self.hql = hql
         self.hive_cli_conn_id = hive_cli_conn_id
-        self.hive_server_conn_id = hive_server_conn_id
         self.schema = schema
         self.hiveconfs = hiveconfs or {}
-        self.fetch_size = fetch_size
         self.hiveconf_jinja_translate = hiveconf_jinja_translate
         self.script_begin_tag = script_begin_tag
         self.run_as = None
@@ -107,13 +100,12 @@ class HiveOperator(BaseOperator):
         self.hook = None
 
     def get_hook(self):
-        return HiveServer2Hook(hiveserver2_conn_id=self.hive_server_conn_id)
-        # return HiveCliHook(
-        #     hive_cli_conn_id=self.hive_cli_conn_id,
-        #     run_as=self.run_as,
-        #     mapred_queue=self.mapred_queue,
-        #     mapred_queue_priority=self.mapred_queue_priority,
-        #     mapred_job_name=self.mapred_job_name)
+        return HiveCliHook(
+            hive_cli_conn_id=self.hive_cli_conn_id,
+            run_as=self.run_as,
+            mapred_queue=self.mapred_queue,
+            mapred_queue_priority=self.mapred_queue_priority,
+            mapred_job_name=self.mapred_job_name)
 
     def prepare_template(self):
         if self.hiveconf_jinja_translate:
@@ -127,11 +119,11 @@ class HiveOperator(BaseOperator):
         self.hook = self.get_hook()
 
         # set the mapred_job_name if it's not set with dag, task, execution time info
-        # if not self.mapred_job_name:
-        #     ti = context['ti']
-        #     self.hook.mapred_job_name = 'Airflow HiveOperator task for {}.{}.{}.{}'\
-        #         .format(ti.hostname.split('.')[0], ti.dag_id, ti.task_id,
-        #                 ti.execution_date.isoformat())
+        if not self.mapred_job_name:
+            ti = context['ti']
+            self.hook.mapred_job_name = 'Airflow HiveOperator task for {}.{}.{}.{}'\
+                .format(ti.hostname.split('.')[0], ti.dag_id, ti.task_id,
+                        ti.execution_date.isoformat())
 
         if self.hiveconf_jinja_translate:
             self.hiveconfs = context_to_airflow_vars(context)
@@ -139,26 +131,11 @@ class HiveOperator(BaseOperator):
             self.hiveconfs.update(context_to_airflow_vars(context))
 
         self.log.info('Passing HiveConf: %s', self.hiveconfs)
+        self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
-        results = self.hook.get_results(
-            hql=self.hql,
-            schema=self.schema,
-            fetch_size=self.fetch_size,
-            hive_conf=self.hiveconfs)
-
-        print(results)
-
-        # self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
-
-    @staticmethod
-    def get_hql(hql, hql_file):
-        if hql:
-            return hql
-        elif hql_file:
-            return open(hql_file).read()
-        else:
-            raise AirflowException(
-                'hql and hql_file are not allowed to exist together!')
+    def dry_run(self):
+        self.hook = self.get_hook()
+        self.hook.test_hql(hql=self.hql)
 
     def on_kill(self):
         if self.hook:
