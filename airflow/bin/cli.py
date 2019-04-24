@@ -59,7 +59,7 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
                             Connection, DAG)
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
-from airflow.utils import cli as cli_utils, db
+from airflow.utils import cli as cli_utils, db, timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
@@ -617,6 +617,14 @@ def list_dags(args):
     print(s.format(dag_list=dag_list))
     if args.report:
         print(dagbag.dagbag_report())
+
+
+@cli_utils.action_logging
+def validate(args):
+    filepath = args.dag_file
+    os.stat(filepath)
+    dag_bag = DagBag()
+    dag_bag.process_file(filepath)
 
 
 @cli_utils.action_logging
@@ -1466,6 +1474,7 @@ class CLIFactory(object):
     args = {
         # Shared
         'dag_id': Arg(("dag_id",), "The id of the dag"),
+        'dag_file': Arg(("dag_file",), "The file of a dag"),
         'task_id': Arg(("task_id",), "The id of the task"),
         'execution_date': Arg(
             ("execution_date",), help="The execution date of the DAG",
@@ -2076,11 +2085,16 @@ class CLIFactory(object):
             'func': next_execution,
             'help': "Get the next execution datetime of a DAG.",
             'args': ('dag_id', 'subdir')
+        },
+        {
+            'func': validate,
+            'help': "Validate a dag is validate or invalid.",
+            'args': ('dag_file',),
         }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
-        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
+        'list_tasks', 'backfill', 'test', 'validate','run', 'pause', 'unpause', 'list_dag_runs')
 
     @classmethod
     def get_parser(cls, dag_parser=False):

@@ -30,6 +30,11 @@ from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
+import os
+import tempfile
+import base64
+import traceback
+from airflow.models import (DagBag)
 
 _log = LoggingMixin().log
 
@@ -253,3 +258,45 @@ def delete_pool(name):
         return response
     else:
         return jsonify(pool.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/dags/validate', methods=['POST'])
+@requires_authentication
+def validate_dag():
+    """
+    Validate a dag file throw a rest api
+
+    dag_file_str: a string represent dag file
+    """
+    data = request.get_json(force=True)
+
+    dag_str = None
+    if 'dag_str' in data:
+        dag_str = data['dag_str']
+    try:
+        dag_str = base64.b64decode(dag_str.encode("utf-8")).decode("utf-8")
+    except Exception as e:
+        traceback.print_exc()
+        response = jsonify({'error': "invalid dag_str to decode."})
+        response.status_code = 400
+        return response
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    response = None
+    try:
+        tmp.write(dag_str.encode('utf8'))
+        tmp.close()
+        os.stat(tmp.name)
+        dag_bag = DagBag()
+        dag_bag.validate_file(tmp.name)
+        response = jsonify({'status': "ok"})
+        response.status_code = 200
+    except Exception as e:
+        traceback.print_exc()
+        response = jsonify({'error': traceback.format_exc()})
+        response.status_code = 500
+
+    finally:
+        os.unlink(tmp.name)
+        return response
