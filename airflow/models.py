@@ -1987,6 +1987,7 @@ class TaskInstance(Base, LoggingMixin):
 
         ds = self.execution_date.strftime('%Y-%m-%d')
         ts = self.execution_date.isoformat()
+        hour = self.execution_date.strftime('%H')
         yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
         tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
 
@@ -2096,6 +2097,7 @@ class TaskInstance(Base, LoggingMixin):
             },
             'inlets': task.inlets,
             'outlets': task.outlets,
+            'hour': hour,
         }
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
