@@ -869,11 +869,11 @@ class SchedulerJob(BaseJob):
 
             # make sure backfills are also considered
             last_run = dag.get_last_dagrun(session=session)
-            self.log.debug(
-                "Dag last_run_execution_date: %s.",
-                last_run.execution_date
-            )
             if last_run and next_run_date:
+                self.log.debug(
+                    "Dag last_run_execution_date: %s.",
+                    last_run.execution_date
+                )
                 while next_run_date <= last_run.execution_date:
                     next_run_date = dag.following_schedule(next_run_date)
 

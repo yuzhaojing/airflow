@@ -21,6 +21,8 @@ from __future__ import unicode_literals
 
 import re
 
+from airflow.exceptions import AirflowException
+
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -67,7 +69,9 @@ class HiveOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, hql,
+            self,
+            hql=None,
+            hql_file=None,
             hive_cli_conn_id='hive_cli_default',
             schema='default',
             hiveconfs=None,
@@ -80,7 +84,7 @@ class HiveOperator(BaseOperator):
             *args, **kwargs):
 
         super(HiveOperator, self).__init__(*args, **kwargs)
-        self.hql = hql
+        self.hql = self.get_hql(hql, hql_file)
         self.hive_cli_conn_id = hive_cli_conn_id
         self.schema = schema
         self.hiveconfs = hiveconfs or {}
@@ -132,6 +136,16 @@ class HiveOperator(BaseOperator):
 
         self.log.info('Passing HiveConf: %s', self.hiveconfs)
         self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
+
+    @staticmethod
+    def get_hql(hql, hql_file):
+        if hql:
+            return hql
+        elif hql_file:
+            return open(hql_file).read()
+        else:
+            raise AirflowException(
+                'hql and hql_file are not allowed to exist together!')
 
     def dry_run(self):
         self.hook = self.get_hook()

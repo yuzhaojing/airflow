@@ -80,6 +80,7 @@ class HiveCliHook(BaseHook):
     :type  mapred_job_name: string
     """
 
+
     def __init__(
             self,
             hive_cli_conn_id="hive_cli_default",
