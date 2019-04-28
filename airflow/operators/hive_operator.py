@@ -75,6 +75,7 @@ class HiveOperator(BaseOperator):
             hive_cli_conn_id='hive_cli_default',
             schema='default',
             hiveconfs=None,
+            hivevars=None,
             hiveconf_jinja_translate=False,
             script_begin_tag=None,
             run_as_owner=False,
@@ -88,6 +89,7 @@ class HiveOperator(BaseOperator):
         self.hive_cli_conn_id = hive_cli_conn_id
         self.schema = schema
         self.hiveconfs = hiveconfs or {}
+        self.hivevars = hivevars or {}
         self.hiveconf_jinja_translate = hiveconf_jinja_translate
         self.script_begin_tag = script_begin_tag
         self.run_as = None
@@ -135,7 +137,7 @@ class HiveOperator(BaseOperator):
             self.hiveconfs.update(context_to_airflow_vars(context))
 
         self.log.info('Passing HiveConf: %s', self.hiveconfs)
-        self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
+        self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs, hive_var=self.hivevars)
 
     @staticmethod
     def get_hql(hql, hql_file):

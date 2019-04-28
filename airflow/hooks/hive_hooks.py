@@ -171,7 +171,29 @@ class HiveCliHook(BaseHook):
                 ["{}={}".format(k, v) for k, v in d.items()])
         )
 
-    def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
+    @staticmethod
+    def _prepare_hivevar(d):
+        """
+        This function prepares a list of hiveconf params
+        from a dictionary of key value pairs.
+
+        :param d:
+        :type d: dict
+
+        >>> hh = HiveCliHook()
+        >>> hive_var = {"a": "true",
+        ... "b": "false"}
+        >>> hh._prepare_hivevar(hive_var)
+        ["-hivevar", "a=true","-hivevar", "b=false"]
+        """
+        if not d:
+            return []
+        return as_flattened_list(
+            zip(["-hivevar"] * len(d),
+                ["{}={}".format(k, v) for k, v in d.items()])
+        )
+
+    def run_cli(self, hql, schema=None, verbose=True, hive_conf=None, hive_var=None):
         """
         Run an hql statement using the hive cli. If hive_conf is specified
         it should be a dict and the entries will be set as key/value pairs
@@ -229,6 +251,10 @@ class HiveCliHook(BaseHook):
                         ['-hiveconf',
                          'mapred.job.name={}'
                          .format(self.mapred_job_name)])
+
+                if hive_var:
+                    hive_var_params = self._prepare_hivevar(hive_var)
+                    hive_cmd.extend(hive_var_params)
 
                 hive_cmd.extend(hive_conf_params)
                 hive_cmd.extend(['-f', f.name])
