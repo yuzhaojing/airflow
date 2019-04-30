@@ -171,7 +171,7 @@ class HiveCliHook(BaseHook):
                 ["{}={}".format(k, v) for k, v in d.items()])
         )
 
-    def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
+    def run_cli(self, hql=None, hql_file=None, schema=None, verbose=True, hive_conf=None):
         """
         Run an hql statement using the hive cli. If hive_conf is specified
         it should be a dict and the entries will be set as key/value pairs
@@ -189,73 +189,79 @@ class HiveCliHook(BaseHook):
         >>> ("OK" in result)
         True
         """
-        conn = self.conn
-        schema = schema or conn.schema
-        if schema:
-            hql = "USE {schema};\n{hql}".format(**locals())
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
-                hql = hql + '\n'
-                f.write(hql.encode('UTF-8'))
-                f.flush()
-                hive_cmd = self._prepare_cli_cmd()
-                env_context = get_context_from_env_var()
-                # Only extend the hive_conf if it is defined.
-                if hive_conf:
-                    env_context.update(hive_conf)
-                hive_conf_params = self._prepare_hiveconf(env_context)
-                if self.mapred_queue:
-                    hive_conf_params.extend(
-                        ['-hiveconf',
-                         'mapreduce.job.queuename={}'
-                         .format(self.mapred_queue),
-                         '-hiveconf',
-                         'mapred.job.queue.name={}'
-                         .format(self.mapred_queue),
-                         '-hiveconf',
-                         'tez.job.queue.name={}'
-                         .format(self.mapred_queue)
-                         ])
+            if hql:
+                with NamedTemporaryFile(dir=tmp_dir) as f:
+                    conn = self.conn
+                    schema = schema or conn.schema
+                    if schema:
+                        hql = "USE {schema};\n{hql}".format(**locals())
+                    hql = hql + '\n'
+                    f.write(hql.encode('UTF-8'))
+                    f.flush()
+                    self._execute_hivecmd(hive_conf=hive_conf, hql_file=f.name, verbose=verbose, cwd=tmp_dir)
+            else:
+                self._execute_hivecmd(hive_conf=hive_conf, hql_file=hql_file, verbose=verbose, cwd=tmp_dir)
 
-                if self.mapred_queue_priority:
-                    hive_conf_params.extend(
-                        ['-hiveconf',
-                         'mapreduce.job.priority={}'
-                         .format(self.mapred_queue_priority)])
+    def _execute_hivecmd(self, hive_conf, hql_file, verbose, cwd):
+        hive_cmd = self._prepare_cli_cmd()
+        env_context = get_context_from_env_var()
+        # Only extend the hive_conf if it is defined.
+        if hive_conf:
+            env_context.update(hive_conf)
+        hive_conf_params = self._prepare_hiveconf(env_context)
+        if self.mapred_queue:
+            hive_conf_params.extend(
+                ['-hiveconf',
+                 'mapreduce.job.queuename={}'
+                     .format(self.mapred_queue),
+                 '-hiveconf',
+                 'mapred.job.queue.name={}'
+                     .format(self.mapred_queue),
+                 '-hiveconf',
+                 'tez.job.queue.name={}'
+                     .format(self.mapred_queue)
+                 ])
 
-                if self.mapred_job_name:
-                    hive_conf_params.extend(
-                        ['-hiveconf',
-                         'mapred.job.name={}'
-                         .format(self.mapred_job_name)])
+        if self.mapred_queue_priority:
+            hive_conf_params.extend(
+                ['-hiveconf',
+                 'mapreduce.job.priority={}'
+                     .format(self.mapred_queue_priority)])
 
-                hive_cmd.extend(hive_conf_params)
-                hive_cmd.extend(['-f', f.name])
+        if self.mapred_job_name:
+            hive_conf_params.extend(
+                ['-hiveconf',
+                 'mapred.job.name={}'
+                     .format(self.mapred_job_name)])
 
-                if verbose:
-                    self.log.info(" ".join(hive_cmd))
-                sp = subprocess.Popen(
-                    hive_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    cwd=tmp_dir,
-                    close_fds=True)
-                self.sp = sp
-                stdout = ''
-                while True:
-                    line = sp.stdout.readline()
-                    if not line:
-                        break
-                    stdout += line.decode('UTF-8')
-                    if verbose:
-                        self.log.info(line.decode('UTF-8').strip())
-                sp.wait()
+        hive_cmd.extend(hive_conf_params)
+        hive_cmd.extend(['-f', hql_file])
 
-                if sp.returncode:
-                    raise AirflowException(stdout)
+        if verbose:
+            self.log.info(" ".join(hive_cmd))
+        sp = subprocess.Popen(
+            hive_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=cwd,
+            close_fds=True)
+        self.sp = sp
+        stdout = ''
+        while True:
+            line = sp.stdout.readline()
+            if not line:
+                break
+            stdout += line.decode('UTF-8')
+            if verbose:
+                self.log.info(line.decode('UTF-8').strip())
+        sp.wait()
 
-                return stdout
+        if sp.returncode:
+            raise AirflowException(stdout)
+
+        return stdout
 
     def test_hql(self, hql):
         """

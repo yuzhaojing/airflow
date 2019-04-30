@@ -84,7 +84,8 @@ class HiveOperator(BaseOperator):
             *args, **kwargs):
 
         super(HiveOperator, self).__init__(*args, **kwargs)
-        self.hql = self.get_hql(hql, hql_file)
+        self.hql = hql
+        self.hql_file = hql_file
         self.hive_cli_conn_id = hive_cli_conn_id
         self.schema = schema
         self.hiveconfs = hiveconfs or {}
@@ -135,17 +136,14 @@ class HiveOperator(BaseOperator):
             self.hiveconfs.update(context_to_airflow_vars(context))
 
         self.log.info('Passing HiveConf: %s', self.hiveconfs)
-        self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
-    @staticmethod
-    def get_hql(hql, hql_file):
-        if hql:
-            return hql
-        elif hql_file:
-            return open(hql_file).read()
-        else:
+        if self.hql and self.hql_file:
             raise AirflowException(
                 'hql and hql_file are not allowed to exist together!')
+        if self.hql:
+            self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
+        else:
+            self.hook.run_cli(hql_file=self.hql_file, hive_conf=self.hiveconfs)
 
     def dry_run(self):
         self.hook = self.get_hook()
