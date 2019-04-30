@@ -229,7 +229,7 @@ class KubeConfig:
         self.tmp_volume_host = conf.get(self.kubernetes_section, 'tmp_volume_host')
 
         # Optionally, hostPath volume containing prop and jars
-        self.dags_volume_host = conf.get(self.kubernetes_section, 'prop_volume_host')
+        self.prop_volume_host = conf.get(self.kubernetes_section, 'prop_volume_host')
 
         # Kubernetes Executor batch size
         self.kubernetes_executor_batch_size = conf.get(self.kubernetes_section, 'kubernetes_executor_batch_size')
