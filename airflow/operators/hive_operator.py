@@ -62,7 +62,7 @@ class HiveOperator(BaseOperator):
     :type  mapred_job_name: string
     """
 
-    template_fields = ('hql', 'hql_file', 'schema', 'hive_cli_conn_id', 'mapred_queue',
+    template_fields = ('hql', 'schema', 'hive_cli_conn_id', 'mapred_queue',
                        'hiveconfs', 'mapred_job_name', 'mapred_queue_priority')
     template_ext = ('.hql', '.sql',)
     ui_color = '#f0e4ec'
