@@ -197,7 +197,7 @@ class KubeConfig:
 
         # The user may optionally use a volume claim to mount a PV containing
         # prop and jars directly
-        self.tmp_volume_claim = conf.get(self.kubernetes_section, 'prop_volume_claim')
+        self.prop_volume_claim = conf.get(self.kubernetes_section, 'prop_volume_claim')
 
         # This prop may optionally be set for PV Claims and is used to locate DAGs
         # on a SubPath
