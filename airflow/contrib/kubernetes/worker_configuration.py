@@ -211,11 +211,11 @@ class WorkerConfiguration(LoggingMixin):
             del volumes[self.dags_volume_name]
             del volume_mounts[self.dags_volume_name]
 
-        if not (self.kube_config.tmp_volume_host and self.kube_config.tmp_volume_claim):
+        if not self.kube_config.tmp_volume_host and not self.kube_config.tmp_volume_claim:
             del volumes[self.tmp_volume_name]
             del volume_mounts[self.tmp_volume_name]
 
-        if not (self.kube_config.prop_volume_host and self.kube_config.prop_volume_claim):
+        if not self.kube_config.prop_volume_host and not self.kube_config.prop_volume_claim:
             del volumes[self.prop_volume_name]
             del volume_mounts[self.prop_volume_name]
 
