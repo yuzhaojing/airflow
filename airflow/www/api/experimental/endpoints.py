@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
+
 from flask import (
     g, Blueprint, jsonify, request, url_for
 )
@@ -34,7 +36,7 @@ import os
 import tempfile
 import base64
 import traceback
-from airflow.models import (DagBag)
+from airflow.models import (DagBag, TaskInstance)
 
 _log = LoggingMixin().log
 
@@ -290,6 +292,75 @@ def validate_dag():
         os.stat(tmp.name)
         dag_bag = DagBag()
         dag_bag.validate_file(tmp.name)
+        response = jsonify({'status': "ok"})
+        response.status_code = 200
+    except Exception as e:
+        traceback.print_exc()
+        response = jsonify({'error': traceback.format_exc()})
+        response.status_code = 500
+
+    finally:
+        os.unlink(tmp.name)
+        return response
+
+
+@csrf.exempt
+@api_experimental.route('/dags/test', methods=['POST'])
+@requires_authentication
+def test_dag():
+    """
+    Validate a dag file throw a rest api
+
+    dag_file_str: a string represent dag file
+    """
+    data = request.get_json(force=True)
+
+    dag_str = None
+    task_id = None
+    execution_date = None
+    if 'dag_str' in data:
+        dag_str = data['dag_str']
+    if 'task_id' in data:
+        task_id = data['task_id']
+    if 'execution_date' in data:
+        try:
+            execution_date = datetime.strptime(data['execution_date'], "%Y-%m-%d")
+        except Exception:
+            traceback.print_exc()
+            response = jsonify({'error': "invalid execution_date to parse, example execution_date like %s"
+                               .format(datetime.now().strftime("%Y-%m-%d"))})
+            response.status_code = 400
+            return response
+    try:
+        dag_str = base64.b64decode(dag_str.encode('utf-8')).decode('utf-8')
+    except Exception:
+        traceback.print_exc()
+        response = jsonify({'error': "invalid dag_str to decode."})
+        response.status_code = 400
+        return response
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    response = None
+    try:
+        tmp.write(dag_str.encode('utf8'))
+        tmp.close()
+        os.stat(tmp.name)
+        dag_bag = DagBag(tmp.name)
+        dags = dag_bag.dags.values()
+        if len(dags) == 1:
+            dag = list(dags)[0]
+            if task_id:
+                task = dag.get_task(task_id=task_id)
+                ti = TaskInstance(task, execution_date)
+                ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+            else:
+                for task in dag.tasks:
+                    ti = TaskInstance(task, execution_date)
+                    ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+        else:
+            response = jsonify({'error': "this dag_str has %d dags, but only can test 1 dag.".format(len(dags))})
+            response.status_code = 400
+            return response
         response = jsonify({'status': "ok"})
         response.status_code = 200
     except Exception as e:
