@@ -140,7 +140,7 @@ class KubeConfig:
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
         self.airflow_home = configuration.get(self.core_section, 'airflow_home')
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
-        self.prop_folder = configuration.get(self.core_section, 'prop_folder')
+        self.bins_folder = configuration.get(self.core_section, 'bins_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
         self.sql_alchemy_conn = configuration.get(self.core_section, 'sql_alchemy_conn')
         self.worker_container_repository = configuration.get(
@@ -196,8 +196,8 @@ class KubeConfig:
         self.tmp_volume_claim = conf.get(self.kubernetes_section, 'tmp_volume_claim')
 
         # The user may optionally use a volume claim to mount a PV containing
-        # prop and jars directly
-        self.prop_volume_claim = conf.get(self.kubernetes_section, 'prop_volume_claim')
+        # bins and jars directly
+        self.bins_volume_claim = conf.get(self.kubernetes_section, 'bins_volume_claim')
 
         # This prop may optionally be set for PV Claims and is used to locate DAGs
         # on a SubPath
@@ -214,10 +214,10 @@ class KubeConfig:
         self.tmp_volume_subpath = conf.get(
             self.kubernetes_section, 'tmp_volume_subpath')
 
-        # This prop may optionally be set for PV Claims and is used to locate prop and jars
+        # This prop may optionally be set for PV Claims and is used to locate bins and jars
         # on a SubPath
-        self.prop_volume_subpath = conf.get(
-            self.kubernetes_section, 'prop_volume_subpath')
+        self.bins_volume_subpath = conf.get(
+            self.kubernetes_section, 'bins_volume_subpath')
 
         # Optionally, hostPath volume containing DAGs
         self.dags_volume_host = conf.get(self.kubernetes_section, 'dags_volume_host')
@@ -228,8 +228,8 @@ class KubeConfig:
         # Optionally, write logs to a hostPath Volume
         self.tmp_volume_host = conf.get(self.kubernetes_section, 'tmp_volume_host')
 
-        # Optionally, hostPath volume containing prop and jars
-        self.prop_volume_host = conf.get(self.kubernetes_section, 'prop_volume_host')
+        # Optionally, hostPath volume containing bins and jars
+        self.bins_volume_host = conf.get(self.kubernetes_section, 'bins_volume_host')
 
         # Kubernetes Executor batch size
         self.kubernetes_executor_batch_size = conf.get(self.kubernetes_section, 'kubernetes_executor_batch_size')

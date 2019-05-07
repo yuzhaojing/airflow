@@ -35,12 +35,12 @@ class WorkerConfiguration(LoggingMixin):
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
         self.worker_airflow_tmp = self.kube_config.base_tmp_folder
-        self.worker_airflow_prop = self.kube_config.prop_folder
+        self.worker_airflow_bins = self.kube_config.bins_folder
 
         self.dags_volume_name = 'airflow-dags'
         self.logs_volume_name = 'airflow-logs'
         self.tmp_volume_name = 'airflow-tmp'
-        self.prop_volume_name = 'airflow-prop'
+        self.bins_volume_name = 'airflow-bins'
 
         super(WorkerConfiguration, self).__init__()
 
@@ -168,10 +168,10 @@ class WorkerConfiguration(LoggingMixin):
                 self.kube_config.tmp_volume_claim,
                 self.kube_config.tmp_volume_host
             ),
-            self.prop_volume_name: _construct_volume(
-                self.prop_volume_name,
-                self.kube_config.prop_volume_claim,
-                self.kube_config.prop_volume_host
+            self.bins_volume_name: _construct_volume(
+                self.bins_volume_name,
+                self.kube_config.bins_volume_claim,
+                self.kube_config.bins_volume_host
             )
         }
 
@@ -189,9 +189,9 @@ class WorkerConfiguration(LoggingMixin):
                 'name': self.tmp_volume_name,
                 'mountPath': self.worker_airflow_tmp,
             },
-            self.prop_volume_name: {
-                'name': self.prop_volume_name,
-                'mountPath': self.worker_airflow_prop,
+            self.bins_volume_name: {
+                'name': self.bins_volume_name,
+                'mountPath': self.worker_airflow_bins,
             }
         }
 
@@ -204,8 +204,8 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.tmp_volume_subpath:
             volume_mounts[self.tmp_volume_name]['subPath'] = self.kube_config.tmp_volume_subpath
 
-        if self.kube_config.prop_volume_subpath:
-            volume_mounts[self.prop_volume_name]['subPath'] = self.kube_config.prop_volume_subpath
+        if self.kube_config.bins_volume_subpath:
+            volume_mounts[self.bins_volume_name]['subPath'] = self.kube_config.bins_volume_subpath
 
         if self.kube_config.dags_in_image:
             del volumes[self.dags_volume_name]
@@ -215,9 +215,9 @@ class WorkerConfiguration(LoggingMixin):
             del volumes[self.tmp_volume_name]
             del volume_mounts[self.tmp_volume_name]
 
-        if not self.kube_config.prop_volume_host and not self.kube_config.prop_volume_claim:
-            del volumes[self.prop_volume_name]
-            del volume_mounts[self.prop_volume_name]
+        if not self.kube_config.bins_volume_host and not self.kube_config.bins_volume_claim:
+            del volumes[self.bins_volume_name]
+            del volume_mounts[self.bins_volume_name]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
