@@ -1460,9 +1460,9 @@ class SchedulerJob(BaseJob):
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
-        self.log.info("Processing %s after before DagStat", dag.dag_id)
+        self.log.info("Processing after before DagStat")
         models.DagStat.update(dag_ids=[d.dag_id for d in dags], log=self.log)
-        self.log.info("Processing %s after update DagStat", dag.dag_id)
+        self.log.info("Processing after update DagStat")
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
