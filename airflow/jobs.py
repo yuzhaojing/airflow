@@ -1790,8 +1790,10 @@ class SchedulerJob(BaseJob):
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)
             session.merge(ti)
+
         # commit batch
         session.commit()
+        self.log.info("Processing %s after commit batch to db", dag.dag_id)
 
         # Record import errors into the ORM
         try:
@@ -1802,6 +1804,8 @@ class SchedulerJob(BaseJob):
             dagbag.kill_zombies(zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
+
+        self.log.info("Processing %s after import errors and kill zombies", dag.dag_id)
 
         return simple_dags
 
