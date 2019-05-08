@@ -1461,6 +1461,7 @@ class SchedulerJob(BaseJob):
             self.manage_slas(dag)
 
         models.DagStat.update([d.dag_id for d in dags])
+        self.log.info("Processing %s after update DagStat", dag.dag_id)
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
