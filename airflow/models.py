@@ -5080,7 +5080,7 @@ class DagStat(Base):
 
     @staticmethod
     @provide_session
-    def update(dag_ids=None, dirty_only=True, session=None):
+    def update(dag_ids=None, dirty_only=True, session=None, log=None):
         """
         Updates the stats for dirty/out-of-sync dags
 
@@ -5100,6 +5100,8 @@ class DagStat(Base):
 
             qry = qry.with_for_update().all()
 
+            log.info("DagStat update 1")
+
             ids = set([dag_stat.dag_id for dag_stat in qry])
 
             # avoid querying with an empty IN clause
@@ -5114,6 +5116,8 @@ class DagStat(Base):
                 .group_by(DagRun.dag_id, DagRun.state)
             )
 
+            log.info("DagStat update 2")
+
             counts = {(dag_id, state): count for dag_id, state, count in qry}
             for dag_id, state in dagstat_states:
                 count = 0
@@ -5124,7 +5128,10 @@ class DagStat(Base):
                     DagStat(dag_id=dag_id, state=state, count=count, dirty=False)
                 )
 
+            log.info("DagStat update 3")
+
             session.commit()
+            log.info("DagStat update 4")
         except Exception as e:
             session.rollback()
             log = LoggingMixin().log
