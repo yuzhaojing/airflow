@@ -5098,6 +5098,8 @@ class DagStat(Base):
             if dirty_only:
                 qry = qry.filter(DagStat.dirty == True) # noqa
 
+            log.info("DagStat update 0")
+
             qry = qry.with_for_update().all()
 
             log.info("DagStat update 1")
